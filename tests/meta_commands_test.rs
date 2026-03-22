@@ -7,12 +7,20 @@ fn test_parse_status_command() {
 
 #[test]
 fn test_parse_config_command() {
-    assert_eq!(parse_meta_command("/config"), MetaCommand::Config);
+    assert_eq!(parse_meta_command("/config"), MetaCommand::Configure);
 }
 
 #[test]
-fn test_parse_verbose_command() {
-    assert_eq!(parse_meta_command("/verbose"), MetaCommand::Verbose);
+fn test_parse_configure_command() {
+    assert_eq!(parse_meta_command("/configure"), MetaCommand::Configure);
+}
+
+#[test]
+fn test_parse_verbose_is_regular_input() {
+    assert_eq!(
+        parse_meta_command("/verbose"),
+        MetaCommand::None("/verbose".to_string())
+    );
 }
 
 #[test]
@@ -66,4 +74,24 @@ fn test_parse_regular_input_trimmed() {
 fn test_slash_in_middle_is_not_command() {
     let result = parse_meta_command("fix /the bug");
     assert_eq!(result, MetaCommand::None("fix /the bug".to_string()));
+}
+
+#[test]
+fn test_parse_bare_exit() {
+    assert_eq!(parse_meta_command("exit"), MetaCommand::Quit);
+}
+
+#[test]
+fn test_parse_bare_quit() {
+    assert_eq!(parse_meta_command("quit"), MetaCommand::Quit);
+}
+
+#[test]
+fn test_parse_clear_command() {
+    assert_eq!(parse_meta_command("/clear"), MetaCommand::Clear);
+}
+
+#[test]
+fn test_parse_bare_clear() {
+    assert_eq!(parse_meta_command("clear"), MetaCommand::Clear);
 }
