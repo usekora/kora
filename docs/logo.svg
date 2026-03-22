@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 460" fill="none">
+  <defs>
+    <linearGradient id="str-outer" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#6D28D9"/>
+      <stop offset="100%" stop-color="#38BDF8"/>
+    </linearGradient>
+    <linearGradient id="str-mid" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#6D28D9"/>
+      <stop offset="100%" stop-color="#818CF8"/>
+    </linearGradient>
+    <linearGradient id="str-center" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#6D28D9"/>
+      <stop offset="100%" stop-color="#A78BFA"/>
+    </linearGradient>
+    <linearGradient id="bridge-arc" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#818CF8" stop-opacity="0"/>
+      <stop offset="20%" stop-color="#A78BFA"/>
+      <stop offset="50%" stop-color="#C4B5FD"/>
+      <stop offset="80%" stop-color="#A78BFA"/>
+      <stop offset="100%" stop-color="#818CF8" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="bridge-arc2" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#A78BFA" stop-opacity="0"/>
+      <stop offset="25%" stop-color="#C4B5FD"/>
+      <stop offset="50%" stop-color="#DDD6FE"/>
+      <stop offset="75%" stop-color="#C4B5FD"/>
+      <stop offset="100%" stop-color="#A78BFA" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="node-outer" cx="40%" cy="35%">
+      <stop offset="0%" stop-color="#67E8F9"/>
+      <stop offset="100%" stop-color="#6366F1"/>
+    </radialGradient>
+    <radialGradient id="node-mid" cx="40%" cy="35%">
+      <stop offset="0%" stop-color="#A5B4FC"/>
+      <stop offset="100%" stop-color="#7C3AED"/>
+    </radialGradient>
+    <radialGradient id="node-center" cx="40%" cy="35%">
+      <stop offset="0%" stop-color="#EDE9FE"/>
+      <stop offset="100%" stop-color="#8B5CF6"/>
+    </radialGradient>
+    <radialGradient id="bridge-node" cx="40%" cy="35%">
+      <stop offset="0%" stop-color="#EDE9FE"/>
+      <stop offset="100%" stop-color="#7C3AED"/>
+    </radialGradient>
+    <radialGradient id="bridge-core" cx="40%" cy="35%">
+      <stop offset="0%" stop-color="#7C3AED"/>
+      <stop offset="100%" stop-color="#4C1D95"/>
+    </radialGradient>
+  </defs>
+
+  <!-- ═══ STRINGS: curved outward from bridge up to agent nodes ═══ -->
+  <path d="M 256,400 C 196,360 68,230 88,68"    stroke="url(#str-outer)" stroke-width="2.5" fill="none" stroke-linecap="round" opacity="0.55"/>
+  <path d="M 256,400 C 216,350 128,220 158,60"   stroke="url(#str-mid)"   stroke-width="3"   fill="none" stroke-linecap="round" opacity="0.7"/>
+  <path d="M 256,400 C 240,340 214,210 228,52"   stroke="url(#str-center)" stroke-width="3.2" fill="none" stroke-linecap="round" opacity="0.85"/>
+  <path d="M 256,400 C 272,340 298,210 284,52"   stroke="url(#str-center)" stroke-width="3.2" fill="none" stroke-linecap="round" opacity="0.85"/>
+  <path d="M 256,400 C 296,350 384,220 354,60"   stroke="url(#str-mid)"   stroke-width="3"   fill="none" stroke-linecap="round" opacity="0.7"/>
+  <path d="M 256,400 C 316,360 444,230 424,68"   stroke="url(#str-outer)" stroke-width="2.5" fill="none" stroke-linecap="round" opacity="0.55"/>
+
+  <!-- ═══ BRIDGE ARCS ═══ -->
+  <path d="M 98,160 Q 256,120 414,160" stroke="url(#bridge-arc)"  stroke-width="2.2" fill="none" stroke-linecap="round" opacity="0.45"/>
+  <path d="M 148,252 Q 256,220 364,252" stroke="url(#bridge-arc2)" stroke-width="1.8" fill="none" stroke-linecap="round" opacity="0.3"/>
+
+  <!-- ═══ AGENT NODES ═══ -->
+  <circle cx="88"  cy="68" r="14" fill="url(#node-outer)"/>
+  <circle cx="158" cy="60" r="14" fill="url(#node-mid)"/>
+  <circle cx="228" cy="52" r="15" fill="url(#node-center)"/>
+  <circle cx="284" cy="52" r="15" fill="url(#node-center)"/>
+  <circle cx="354" cy="60" r="14" fill="url(#node-mid)"/>
+  <circle cx="424" cy="68" r="14" fill="url(#node-outer)"/>
+
+  <!-- ═══ BRIDGE / CONVERGENCE NODE ═══ -->
+  <circle cx="256" cy="400" r="22" fill="url(#bridge-node)"/>
+  <circle cx="256" cy="400" r="11" fill="url(#bridge-core)"/>
+</svg>
