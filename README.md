@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://em-content.zobj.net/source/apple/391/musical-note_1f3b5.png" width="80" />
+  <img src="assets/logo.svg" width="120" />
 </p>
 
 <h1 align="center">Kora</h1>
