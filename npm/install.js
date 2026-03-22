@@ -2,7 +2,7 @@ const { execFileSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 
-const REPO = "kora-ai/kora";
+const REPO = "usekora/kora";
 const BIN_DIR = path.join(__dirname, "bin");
 
 const PLATFORM_MAP = {

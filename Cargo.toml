@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 description = "Multi-agent development orchestration CLI"
 license = "MIT"
-repository = "https://github.com/kora-ai/kora"
+repository = "https://github.com/usekora/kora"
 
 [dependencies]
 tokio = { version = "1", features = ["full"] }

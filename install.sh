@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-REPO="kora-ai/kora"
+REPO="usekora/kora"
 BINARY="kora"
 
 get_arch() {

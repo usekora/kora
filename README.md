@@ -326,7 +326,7 @@ A Claude researcher can hand off to a Codex reviewer seamlessly because the hand
 ## Contributing
 
 ```bash
-git clone https://github.com/<org>/kora.git
+git clone https://github.com/usekora/kora.git
 cd kora
 cargo build
 cargo test
