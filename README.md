@@ -89,6 +89,7 @@ graph LR
 - **Resumable** — all state saved to disk. `kora resume` picks up where you left off
 - **Configurable checkpoints** — approve at every stage, or `--yolo` for full autopilot
 - **Three verbosity modes** — press `Tab` to toggle between focused, detailed, and verbose
+- **Push & PR when you're ready** — optionally push branches and create pull requests after review. Always requires explicit approval, never automatic
 
 ## Install
 
@@ -242,8 +243,16 @@ kora clean        # Clean up old run data
   ? What would you like to do with the changes?
 
     ❯ Merge all into current branch
-      Create a PR combining all changes
+      Create a single combined branch
       Leave branches as-is
+
+  ✓ merged 4 branches
+
+  ? Push to remote?
+
+    ❯ Done — keep changes local
+      Push branch to remote
+      Push and create a Pull Request
 ```
 
 ## Configuration
