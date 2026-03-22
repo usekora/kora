@@ -1,39 +1,83 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" fill="none">
   <defs>
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#0f0c29"/>
-      <stop offset="100%" style="stop-color:#1a1a2e"/>
+      <stop offset="0%" stop-color="#0f0c29"/>
+      <stop offset="100%" stop-color="#1a1a2e"/>
     </linearGradient>
-    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#6C5CE7"/>
-      <stop offset="100%" style="stop-color:#A855F7"/>
+    <linearGradient id="str-outer" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#6D28D9"/>
+      <stop offset="100%" stop-color="#38BDF8"/>
     </linearGradient>
-    <linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#C4B5FD"/>
-      <stop offset="100%" style="stop-color:#E9D5FF"/>
+    <linearGradient id="str-mid" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#6D28D9"/>
+      <stop offset="100%" stop-color="#818CF8"/>
     </linearGradient>
+    <linearGradient id="str-center" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#6D28D9"/>
+      <stop offset="100%" stop-color="#A78BFA"/>
+    </linearGradient>
+    <linearGradient id="bridge-arc" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#818CF8" stop-opacity="0"/>
+      <stop offset="20%" stop-color="#A78BFA"/>
+      <stop offset="50%" stop-color="#C4B5FD"/>
+      <stop offset="80%" stop-color="#A78BFA"/>
+      <stop offset="100%" stop-color="#818CF8" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="bridge-arc2" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#A78BFA" stop-opacity="0"/>
+      <stop offset="25%" stop-color="#C4B5FD"/>
+      <stop offset="50%" stop-color="#DDD6FE"/>
+      <stop offset="75%" stop-color="#C4B5FD"/>
+      <stop offset="100%" stop-color="#A78BFA" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="node-outer" cx="40%" cy="35%">
+      <stop offset="0%" stop-color="#67E8F9"/>
+      <stop offset="100%" stop-color="#6366F1"/>
+    </radialGradient>
+    <radialGradient id="node-mid" cx="40%" cy="35%">
+      <stop offset="0%" stop-color="#A5B4FC"/>
+      <stop offset="100%" stop-color="#7C3AED"/>
+    </radialGradient>
+    <radialGradient id="node-center" cx="40%" cy="35%">
+      <stop offset="0%" stop-color="#EDE9FE"/>
+      <stop offset="100%" stop-color="#8B5CF6"/>
+    </radialGradient>
+    <radialGradient id="bridge-node" cx="40%" cy="35%">
+      <stop offset="0%" stop-color="#EDE9FE"/>
+      <stop offset="100%" stop-color="#7C3AED"/>
+    </radialGradient>
+    <radialGradient id="bridge-core" cx="40%" cy="35%">
+      <stop offset="0%" stop-color="#7C3AED"/>
+      <stop offset="100%" stop-color="#4C1D95"/>
+    </radialGradient>
   </defs>
 
+  <!-- Background -->
   <rect width="1280" height="640" fill="url(#bg)"/>
 
-  <!-- Kora strings -->
-  <line x1="570" y1="180" x2="640" y2="330" stroke="url(#glow)" stroke-width="2" stroke-linecap="round" opacity="0.4"/>
-  <line x1="605" y1="170" x2="640" y2="330" stroke="url(#glow)" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
-  <line x1="640" y1="165" x2="640" y2="330" stroke="url(#glow)" stroke-width="2.5" stroke-linecap="round" opacity="0.8"/>
-  <line x1="675" y1="170" x2="640" y2="330" stroke="url(#glow)" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
-  <line x1="710" y1="180" x2="640" y2="330" stroke="url(#glow)" stroke-width="2" stroke-linecap="round" opacity="0.4"/>
-
-  <circle cx="570" cy="180" r="5" fill="#C4B5FD" opacity="0.6"/>
-  <circle cx="605" cy="170" r="5" fill="#D8B4FE" opacity="0.7"/>
-  <circle cx="640" cy="165" r="6" fill="#F3E8FF"/>
-  <circle cx="675" cy="170" r="5" fill="#D8B4FE" opacity="0.7"/>
-  <circle cx="710" cy="180" r="5" fill="#C4B5FD" opacity="0.6"/>
-  <circle cx="640" cy="330" r="7" fill="#F3E8FF" opacity="0.9"/>
-  <circle cx="640" cy="330" r="3" fill="#1a1a2e"/>
+  <!-- Logo (centered, scaled) -->
+  <g transform="translate(540, 60) scale(0.4)">
+    <path d="M 256,400 C 196,360 68,230 88,68"    stroke="url(#str-outer)" stroke-width="2.5" fill="none" stroke-linecap="round" opacity="0.55"/>
+    <path d="M 256,400 C 216,350 128,220 158,60"   stroke="url(#str-mid)"   stroke-width="3"   fill="none" stroke-linecap="round" opacity="0.7"/>
+    <path d="M 256,400 C 240,340 214,210 228,52"   stroke="url(#str-center)" stroke-width="3.2" fill="none" stroke-linecap="round" opacity="0.85"/>
+    <path d="M 256,400 C 272,340 298,210 284,52"   stroke="url(#str-center)" stroke-width="3.2" fill="none" stroke-linecap="round" opacity="0.85"/>
+    <path d="M 256,400 C 296,350 384,220 354,60"   stroke="url(#str-mid)"   stroke-width="3"   fill="none" stroke-linecap="round" opacity="0.7"/>
+    <path d="M 256,400 C 316,360 444,230 424,68"   stroke="url(#str-outer)" stroke-width="2.5" fill="none" stroke-linecap="round" opacity="0.55"/>
+    <path d="M 98,160 Q 256,120 414,160"  stroke="url(#bridge-arc)"  stroke-width="2.2" fill="none" stroke-linecap="round" opacity="0.45"/>
+    <path d="M 148,252 Q 256,220 364,252" stroke="url(#bridge-arc2)" stroke-width="1.8" fill="none" stroke-linecap="round" opacity="0.3"/>
+    <circle cx="88"  cy="68" r="14" fill="url(#node-outer)"/>
+    <circle cx="158" cy="60" r="14" fill="url(#node-mid)"/>
+    <circle cx="228" cy="52" r="15" fill="url(#node-center)"/>
+    <circle cx="284" cy="52" r="15" fill="url(#node-center)"/>
+    <circle cx="354" cy="60" r="14" fill="url(#node-mid)"/>
+    <circle cx="424" cy="68" r="14" fill="url(#node-outer)"/>
+    <circle cx="256" cy="400" r="22" fill="url(#bridge-node)"/>
+    <circle cx="256" cy="400" r="11" fill="url(#bridge-core)"/>
+  </g>
 
   <!-- Title -->
-  <text x="640" y="420" text-anchor="middle" fill="#F3E8FF" font-family="system-ui, -apple-system, sans-serif" font-size="64" font-weight="700" letter-spacing="-1">kora</text>
+  <text x="640" y="390" text-anchor="middle" fill="#F3E8FF" font-family="system-ui, -apple-system, sans-serif" font-size="64" font-weight="700" letter-spacing="-1">kora</text>
 
   <!-- Tagline -->
-  <text x="640" y="470" text-anchor="middle" fill="#8B7FD4" font-family="system-ui, -apple-system, sans-serif" font-size="20" font-weight="400">Multi-agent development orchestration</text>
+  <text x="640" y="440" text-anchor="middle" fill="#A78BFA" font-family="system-ui, -apple-system, sans-serif" font-size="20" font-weight="400" opacity="0.8">Multi-agent development orchestration</text>
 </svg>
