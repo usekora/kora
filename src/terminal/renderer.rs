@@ -2,7 +2,7 @@ use crossterm::{
     execute,
     style::{Attribute, Color, Print, ResetColor, SetAttribute, SetForegroundColor},
 };
-use std::io;
+use std::io::{self, Write};
 
 
 pub struct Renderer {
@@ -139,6 +139,72 @@ impl Renderer {
             Print("  ready. describe what you'd like to build, fix, or change.\n\n"),
         )
         .ok();
+    }
+
+    pub fn checkpoint_prompt(&mut self, next_stage: &str) -> bool {
+        execute!(
+            self.stdout,
+            Print("\n"),
+            SetForegroundColor(Color::Yellow),
+            Print("  ■ checkpoint"),
+            ResetColor,
+            Print(format!(": approve to proceed to {}? [y/n] ", next_stage)),
+        )
+        .ok();
+        self.stdout.flush().ok();
+
+        let mut input = String::new();
+        if io::stdin().read_line(&mut input).is_err() {
+            return false;
+        }
+        let answer = input.trim().to_lowercase();
+        answer == "y" || answer == "yes"
+    }
+
+    pub fn review_loop_summary(
+        &mut self,
+        iteration: u32,
+        valid: u32,
+        dismissed: u32,
+        overall: &str,
+    ) {
+        let color = if overall == "APPROVE" {
+            Color::Green
+        } else {
+            Color::Yellow
+        };
+
+        execute!(
+            self.stdout,
+            Print("\n  "),
+            SetForegroundColor(color),
+            Print(format!(
+                "review iteration {}: {} valid, {} dismissed",
+                iteration, valid, dismissed
+            )),
+            ResetColor,
+            Print(format!(" → {}\n", overall)),
+        )
+        .ok();
+    }
+
+    pub fn escalation(&mut self, message: &str) {
+        execute!(
+            self.stdout,
+            Print("\n  "),
+            SetForegroundColor(Color::Red),
+            SetAttribute(Attribute::Bold),
+            Print("▲ escalation"),
+            SetAttribute(Attribute::Reset),
+            ResetColor,
+            Print(format!(": {}\n", message)),
+        )
+        .ok();
+    }
+
+    pub fn iteration_header(&mut self, iteration: u32, max: u32) {
+        let label = format!("review loop · iteration {} of {}", iteration, max);
+        self.stage_header(&label, "running");
     }
 }
 

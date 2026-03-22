@@ -45,6 +45,38 @@ fn extract_block(text: &str, open_tag: &str, close_tag: &str) -> Option<String> 
     Some(content.trim().to_string())
 }
 
+fn parse_findings_block(block: &str) -> Option<ReviewSummary> {
+    let mut findings = Vec::new();
+    let mut total = 0u32;
+
+    for line in block.lines() {
+        let line = line.trim().trim_start_matches('-').trim();
+        if line.is_empty() {
+            continue;
+        }
+
+        if line.starts_with("TOTAL:") {
+            if let Some(num) = line.split_whitespace().nth(1) {
+                total = num.parse().unwrap_or(0);
+            }
+        } else if let Some((id_part, rest)) = line.split_once(':') {
+            let parts: Vec<&str> = rest.trim().splitn(2, ' ').collect();
+            if parts.len() == 2 {
+                findings.push(ReviewFinding {
+                    id: id_part.trim().to_string(),
+                    severity: parts[0].to_string(),
+                    title: parts[1].to_string(),
+                });
+            }
+        }
+    }
+
+    Some(ReviewSummary {
+        total: if total > 0 { total } else { findings.len() as u32 },
+        findings,
+    })
+}
+
 pub fn parse_verdict(text: &str) -> Option<Verdict> {
     let block = extract_block(text, "<!-- VERDICT -->", "<!-- /VERDICT -->")?;
     let mut findings = Vec::new();
@@ -86,35 +118,16 @@ pub fn parse_verdict(text: &str) -> Option<Verdict> {
 
 pub fn parse_review(text: &str) -> Option<ReviewSummary> {
     let block = extract_block(text, "<!-- REVIEW -->", "<!-- /REVIEW -->")?;
-    let mut findings = Vec::new();
-    let mut total = 0u32;
+    parse_findings_block(&block)
+}
 
-    for line in block.lines() {
-        let line = line.trim().trim_start_matches('-').trim();
-        if line.is_empty() {
-            continue;
-        }
+pub fn parse_security_review(text: &str) -> Option<ReviewSummary> {
+    let block = extract_block(text, "<!-- SECURITY -->", "<!-- /SECURITY -->")?;
+    parse_findings_block(&block)
+}
 
-        if line.starts_with("TOTAL:") {
-            if let Some(num) = line.split_whitespace().nth(1) {
-                total = num.parse().unwrap_or(0);
-            }
-        } else if let Some((id_part, rest)) = line.split_once(':') {
-            let parts: Vec<&str> = rest.trim().splitn(2, ' ').collect();
-            if parts.len() == 2 {
-                findings.push(ReviewFinding {
-                    id: id_part.trim().to_string(),
-                    severity: parts[0].to_string(),
-                    title: parts[1].to_string(),
-                });
-            }
-        }
-    }
-
-    Some(ReviewSummary {
-        total: if total > 0 { total } else { findings.len() as u32 },
-        findings,
-    })
+pub fn extract_plan(text: &str) -> Option<String> {
+    extract_block(text, "<!-- PLAN -->", "<!-- /PLAN -->")
 }
 
 pub fn parse_validation(text: &str) -> Option<ValidationResult> {

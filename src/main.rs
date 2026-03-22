@@ -5,6 +5,7 @@ use std::env;
 use kora::cli::app::{Cli, Commands};
 use kora::cli::configure;
 use kora::config;
+use kora::pipeline::orchestrator::{self, PipelineOptions};
 use kora::provider::detect_providers;
 use kora::terminal::Renderer;
 
@@ -16,8 +17,37 @@ fn main() -> Result<()> {
         Some(Commands::Configure) => {
             configure::run_configure(&project_root)?;
         }
-        Some(Commands::Run { request, .. }) => {
-            println!("  run not yet implemented: {}", request);
+        Some(Commands::Run {
+            request,
+            provider,
+            yolo,
+            careful,
+            dry_run,
+        }) => {
+            let config = config::load(&project_root)?;
+            let detected = detect_providers();
+            let mut renderer = Renderer::new();
+
+            if detected.is_empty() {
+                eprintln!("  No AI CLI tools detected. Install claude or codex first.");
+                return Ok(());
+            }
+
+            let options = PipelineOptions {
+                request,
+                yolo,
+                careful,
+                dry_run,
+                provider_override: provider,
+            };
+
+            let rt = tokio::runtime::Runtime::new()?;
+            rt.block_on(orchestrator::run_pipeline(
+                &config,
+                &project_root,
+                options,
+                &mut renderer,
+            ))?;
         }
         Some(Commands::Resume) => {
             println!("  resume not yet implemented");
@@ -50,8 +80,21 @@ fn main() -> Result<()> {
                 return Ok(());
             }
 
-            println!("\n  received: \"{}\"", input);
-            println!("  pipeline not yet implemented — coming in Phase 2\n");
+            let options = PipelineOptions {
+                request: input,
+                yolo: false,
+                careful: false,
+                dry_run: false,
+                provider_override: None,
+            };
+
+            let rt = tokio::runtime::Runtime::new()?;
+            rt.block_on(orchestrator::run_pipeline(
+                &config,
+                &project_root,
+                options,
+                &mut renderer,
+            ))?;
         }
     }
 

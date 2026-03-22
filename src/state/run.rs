@@ -68,4 +68,15 @@ impl RunState {
         self.timestamps
             .insert(self.status.label().to_string(), self.updated_at);
     }
+
+    pub fn set_error(&mut self, err: &str) {
+        self.error = Some(err.to_string());
+        self.status = Stage::Failed(err.to_string());
+        self.updated_at = Utc::now();
+    }
+
+    pub fn increment_iteration(&mut self) {
+        self.current_iteration += 1;
+        self.updated_at = Utc::now();
+    }
 }

@@ -24,10 +24,30 @@ fn test_kora_version() {
 }
 
 #[test]
-fn test_kora_run_placeholder() {
+fn test_kora_resume_placeholder() {
     Command::cargo_bin("kora")
         .unwrap()
-        .args(["run", "test request"])
+        .arg("resume")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("not yet implemented"));
+}
+
+#[test]
+fn test_kora_history_placeholder() {
+    Command::cargo_bin("kora")
+        .unwrap()
+        .arg("history")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("not yet implemented"));
+}
+
+#[test]
+fn test_kora_clean_placeholder() {
+    Command::cargo_bin("kora")
+        .unwrap()
+        .arg("clean")
         .assert()
         .success()
         .stdout(predicate::str::contains("not yet implemented"));

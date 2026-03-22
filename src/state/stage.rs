@@ -65,3 +65,37 @@ pub fn can_transition(from: &Stage, to: &Stage) -> bool {
         _ => false,
     }
 }
+
+pub fn checkpoint_for_stage(next_stage: &Stage, checkpoints: &[Checkpoint]) -> Option<Checkpoint> {
+    match next_stage {
+        Stage::Reviewing => {
+            if checkpoints.contains(&Checkpoint::AfterResearcher) {
+                Some(Checkpoint::AfterResearcher)
+            } else {
+                None
+            }
+        }
+        Stage::Planning => {
+            if checkpoints.contains(&Checkpoint::AfterReviewLoop) {
+                Some(Checkpoint::AfterReviewLoop)
+            } else {
+                None
+            }
+        }
+        Stage::Implementing => {
+            if checkpoints.contains(&Checkpoint::AfterPlanner) {
+                Some(Checkpoint::AfterPlanner)
+            } else {
+                None
+            }
+        }
+        Stage::Complete => {
+            if checkpoints.contains(&Checkpoint::AfterImplementation) {
+                Some(Checkpoint::AfterImplementation)
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
+}

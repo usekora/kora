@@ -1,4 +1,6 @@
-use kora::agent::output_parser::{parse_review, parse_validation, parse_verdict};
+use kora::agent::output_parser::{
+    extract_plan, parse_review, parse_security_review, parse_validation, parse_verdict,
+};
 
 #[test]
 fn test_parse_verdict_approve() {
@@ -70,4 +72,59 @@ fn test_parse_validation_pass() {
     let result = parse_validation(text).unwrap();
     assert!(result.passed);
     assert_eq!(result.blocking_issues, 0);
+}
+
+#[test]
+fn test_parse_security_review_summary() {
+    let text = r#"
+Some analysis...
+
+<!-- SECURITY -->
+- FINDING_1: HIGH SQL injection in user input handler
+- FINDING_2: MEDIUM Missing rate limiting on API
+- TOTAL: 2 findings (1 high, 1 medium, 0 low)
+<!-- /SECURITY -->
+"#;
+    let review = parse_security_review(text).unwrap();
+    assert_eq!(review.findings.len(), 2);
+    assert_eq!(review.findings[0].severity, "HIGH");
+    assert_eq!(
+        review.findings[0].title,
+        "SQL injection in user input handler"
+    );
+    assert_eq!(review.findings[1].severity, "MEDIUM");
+}
+
+#[test]
+fn test_parse_security_review_missing_markers() {
+    let text = "No security markers here";
+    assert!(parse_security_review(text).is_none());
+}
+
+#[test]
+fn test_extract_plan() {
+    let text = r#"
+Here is some discussion...
+
+<!-- PLAN -->
+## Approach
+
+Use a dark mode CSS variable system.
+
+## Files to Change
+
+- src/theme.ts: add dark mode variables
+<!-- /PLAN -->
+
+Some trailing text.
+"#;
+    let plan = extract_plan(text).unwrap();
+    assert!(plan.contains("dark mode CSS variable system"));
+    assert!(plan.contains("Files to Change"));
+}
+
+#[test]
+fn test_extract_plan_missing_markers() {
+    let text = "No plan markers here";
+    assert!(extract_plan(text).is_none());
 }
