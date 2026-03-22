@@ -61,7 +61,7 @@ pub async fn run_merge_flow(
             "Create a single combined branch",
             "Leave branches as-is",
         ];
-        selector::select("What would you like to do with the changes?", &options)?
+        selector::select("What would you like to do with the changes?", &options, 0)?
     };
 
     let strategy = match choice {
@@ -168,7 +168,7 @@ async fn offer_remote_operations(
         options.push("Push and create a Pull Request");
     }
 
-    let choice = selector::select("Push to remote?", &options)?;
+    let choice = selector::select("Push to remote?", &options, 0)?;
 
     match choice {
         0 => {

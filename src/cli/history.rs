@@ -104,7 +104,11 @@ pub fn run_history(_project_root: &Path) -> Result<()> {
         .collect();
     let option_refs: Vec<&str> = run_options.iter().map(|s| s.as_str()).collect();
 
-    let idx = selector::select("Select a run to view details (esc to exit):", &option_refs)?;
+    let idx = selector::select(
+        "Select a run to view details (esc to exit):",
+        &option_refs,
+        0,
+    )?;
 
     if idx < flat_runs.len() {
         print_run_detail(&mut stdout, flat_runs[idx])?;

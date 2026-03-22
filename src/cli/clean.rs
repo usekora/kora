@@ -40,7 +40,7 @@ pub async fn run_clean(project_root: &Path) -> Result<()> {
         "Cancel",
     ];
 
-    let choice = selector::select("Clean up:", &options)?;
+    let choice = selector::select("Clean up:", &options, 0)?;
 
     let runs_to_clean: Vec<&RunState> = match choice {
         0 => all_runs.iter().collect(),
@@ -63,7 +63,7 @@ pub async fn run_clean(project_root: &Path) -> Result<()> {
                 })
                 .collect();
             let label_refs: Vec<&str> = labels.iter().map(|s| s.as_str()).collect();
-            let selected = selector::multi_select("Select runs to clean:", &label_refs)?;
+            let selected = selector::multi_select("Select runs to clean:", &label_refs, &[])?;
             selected.iter().filter_map(|&i| all_runs.get(i)).collect()
         }
         _ => {

@@ -31,6 +31,7 @@ fn test_kora_resume_no_runs() {
         .unwrap()
         .arg("resume")
         .current_dir(tmp.path())
+        .env("HOME", tmp.path())
         .assert()
         .success()
         .stdout(predicate::str::contains("no interrupted runs"));
@@ -43,6 +44,7 @@ fn test_kora_history_no_runs() {
         .unwrap()
         .arg("history")
         .current_dir(tmp.path())
+        .env("HOME", tmp.path())
         .assert()
         .success()
         .stdout(predicate::str::contains("no run history"));

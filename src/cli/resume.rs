@@ -33,7 +33,7 @@ pub fn run_resume(project_root: &Path) -> Result<()> {
     } else {
         let options: Vec<String> = interrupted.iter().map(format_run_summary).collect();
         let option_refs: Vec<&str> = options.iter().map(|s| s.as_str()).collect();
-        let idx = selector::select("Select a run to resume:", &option_refs)?;
+        let idx = selector::select("Select a run to resume:", &option_refs, 0)?;
         interrupted[idx].clone()
     };
 
