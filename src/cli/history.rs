@@ -191,8 +191,14 @@ fn print_run_detail(stdout: &mut io::Stdout, run: &RunState) -> Result<()> {
         stdout,
         Print(format!("  request: \"{}\"\n", run.request)),
         Print(format!("  status:  {}\n", run.status.label())),
-        Print(format!("  created: {}\n", run.created_at.format("%Y-%m-%d %H:%M:%S UTC"))),
-        Print(format!("  updated: {}\n", run.updated_at.format("%Y-%m-%d %H:%M:%S UTC"))),
+        Print(format!(
+            "  created: {}\n",
+            run.created_at.format("%Y-%m-%d %H:%M:%S UTC")
+        )),
+        Print(format!(
+            "  updated: {}\n",
+            run.updated_at.format("%Y-%m-%d %H:%M:%S UTC")
+        )),
     )?;
 
     if let Some(ref err) = run.error {

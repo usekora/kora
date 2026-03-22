@@ -1,7 +1,7 @@
-mod stage;
-mod run;
 mod directory;
+mod run;
+mod stage;
 
-pub use stage::*;
-pub use run::RunState;
 pub use directory::RunDirectory;
+pub use run::RunState;
+pub use stage::*;

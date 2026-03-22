@@ -1,12 +1,12 @@
-mod traits;
 mod claude;
 mod codex;
 mod detection;
+mod traits;
 
-pub use traits::{AgentOutput, InteractiveSession, Provider, ProviderKind};
 pub use claude::ClaudeProvider;
 pub use codex::CodexProvider;
 pub use detection::{detect_providers, DetectedProvider};
+pub use traits::{AgentOutput, InteractiveSession, Provider, ProviderKind};
 
 use crate::config::Config;
 

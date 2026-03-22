@@ -169,9 +169,6 @@ pub async fn run_review_loop(
 
     Ok(ReviewOutcome::Escalated {
         iteration: max,
-        reason: format!(
-            "review loop did not converge after {} iterations",
-            max
-        ),
+        reason: format!("review loop did not converge after {} iterations", max),
     })
 }

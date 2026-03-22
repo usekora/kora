@@ -46,10 +46,7 @@ pub async fn run_clean(project_root: &Path) -> Result<()> {
         0 => all_runs.iter().collect(),
         1 => {
             let cutoff = Utc::now() - chrono::Duration::days(7);
-            all_runs
-                .iter()
-                .filter(|r| r.created_at < cutoff)
-                .collect()
+            all_runs.iter().filter(|r| r.created_at < cutoff).collect()
         }
         2 => {
             let labels: Vec<String> = all_runs

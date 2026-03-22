@@ -15,13 +15,7 @@ impl RunDirectory {
     }
 
     pub fn create_structure(&self) -> Result<()> {
-        let dirs = [
-            "context",
-            "reviews",
-            "plan",
-            "implementation",
-            "validation",
-        ];
+        let dirs = ["context", "reviews", "plan", "implementation", "validation"];
         for dir in dirs {
             std::fs::create_dir_all(self.base.join(dir))?;
         }
@@ -33,7 +27,9 @@ impl RunDirectory {
     }
 
     pub fn reviews_dir(&self, iteration: u32) -> PathBuf {
-        self.base.join("reviews").join(format!("iteration-{}", iteration))
+        self.base
+            .join("reviews")
+            .join(format!("iteration-{}", iteration))
     }
 
     pub fn plan_dir(&self) -> PathBuf {
@@ -41,7 +37,9 @@ impl RunDirectory {
     }
 
     pub fn task_dir(&self, task_id: &str) -> PathBuf {
-        self.base.join("implementation").join(format!("task-{}", task_id))
+        self.base
+            .join("implementation")
+            .join(format!("task-{}", task_id))
     }
 
     pub fn validation_dir(&self) -> PathBuf {

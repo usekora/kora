@@ -4,7 +4,6 @@ use crossterm::{
 };
 use std::io::{self, Write};
 
-
 pub struct Renderer {
     stdout: io::Stdout,
 }
@@ -252,7 +251,11 @@ impl Renderer {
             self.stdout,
             Print("\n  "),
             SetForegroundColor(color),
-            Print(format!("{} validation {}", icon, if passed { "passed" } else { "failed" })),
+            Print(format!(
+                "{} validation {}",
+                icon,
+                if passed { "passed" } else { "failed" }
+            )),
             ResetColor,
             Print(format!(
                 "  blocking: {}  minor: {}  tests: {} passed, {} failed\n",

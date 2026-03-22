@@ -71,8 +71,9 @@ pub fn build_reviewer_prompt(
 
     let plan = read_file_if_exists(&run_dir.join("context").join("researcher-plan.md"))
         .unwrap_or_default();
-    let codebase_summary = read_file_if_exists(&run_dir.join("context").join("codebase-summary.md"))
-        .unwrap_or_default();
+    let codebase_summary =
+        read_file_if_exists(&run_dir.join("context").join("codebase-summary.md"))
+            .unwrap_or_default();
 
     let mut context = format!(
         "## User Request\n\n{}\n\n\
@@ -115,8 +116,9 @@ pub fn build_security_prompt(
 
     let plan = read_file_if_exists(&run_dir.join("context").join("researcher-plan.md"))
         .unwrap_or_default();
-    let codebase_summary = read_file_if_exists(&run_dir.join("context").join("codebase-summary.md"))
-        .unwrap_or_default();
+    let codebase_summary =
+        read_file_if_exists(&run_dir.join("context").join("codebase-summary.md"))
+            .unwrap_or_default();
 
     let mut context = format!(
         "## User Request\n\n{}\n\n\
@@ -275,10 +277,8 @@ pub fn build_validator_prompt(
                     let task_id = entry.file_name().to_string_lossy().to_string();
                     let result_path = entry.path().join("TASK_RESULT.md");
                     if let Some(content) = read_file_if_exists(&result_path) {
-                        task_results.push_str(&format!(
-                            "\n### {} Result\n\n{}\n",
-                            task_id, content
-                        ));
+                        task_results
+                            .push_str(&format!("\n### {} Result\n\n{}\n", task_id, content));
                     }
                 }
             }

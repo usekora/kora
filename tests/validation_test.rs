@@ -144,7 +144,11 @@ fn test_build_validator_prompt_includes_plan_and_results() {
         "the implementation plan",
     )
     .unwrap();
-    std::fs::write(context_dir.join("codebase-summary.md"), "the codebase summary").unwrap();
+    std::fs::write(
+        context_dir.join("codebase-summary.md"),
+        "the codebase summary",
+    )
+    .unwrap();
 
     let plan_dir = run_dir.join("plan");
     std::fs::create_dir_all(&plan_dir).unwrap();
@@ -190,8 +194,7 @@ fn test_build_fix_prompt_includes_fixes() {
         "Fix 2: Wrong return type in api.ts".to_string(),
     ];
 
-    let result =
-        context::build_fix_prompt(run_dir, "test request", &fixes, run_dir, None).unwrap();
+    let result = context::build_fix_prompt(run_dir, "test request", &fixes, run_dir, None).unwrap();
 
     assert!(result.prompt.contains("Missing export"));
     assert!(result.prompt.contains("Wrong return type"));

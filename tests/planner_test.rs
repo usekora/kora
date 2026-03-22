@@ -48,30 +48,23 @@ fn test_validate_breakdown_duplicate_ids() {
 
 #[test]
 fn test_validate_breakdown_missing_dependency() {
-    let breakdown = make_breakdown(
-        vec![make_task("T1", vec!["T99"])],
-        vec!["T1"],
-    );
+    let breakdown = make_breakdown(vec![make_task("T1", vec!["T99"])], vec!["T1"]);
     let err = validate_breakdown(&breakdown).unwrap_err();
     assert!(err.to_string().contains("non-existent task T99"));
 }
 
 #[test]
 fn test_validate_breakdown_self_dependency() {
-    let breakdown = make_breakdown(
-        vec![make_task("T1", vec!["T1"])],
-        vec!["T1"],
-    );
+    let breakdown = make_breakdown(vec![make_task("T1", vec!["T1"])], vec!["T1"]);
     let err = validate_breakdown(&breakdown).unwrap_err();
     assert!(err.to_string().contains("depends on itself"));
 }
 
 #[test]
 fn test_validate_breakdown_bad_merge_order() {
-    let breakdown = make_breakdown(
-        vec![make_task("T1", vec![])],
-        vec!["T1", "T99"],
-    );
+    let breakdown = make_breakdown(vec![make_task("T1", vec![])], vec!["T1", "T99"]);
     let err = validate_breakdown(&breakdown).unwrap_err();
-    assert!(err.to_string().contains("merge_order references non-existent task T99"));
+    assert!(err
+        .to_string()
+        .contains("merge_order references non-existent task T99"));
 }

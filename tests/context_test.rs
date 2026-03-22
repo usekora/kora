@@ -16,8 +16,7 @@ fn test_build_researcher_prompt_includes_base_prompt() {
 
 #[test]
 fn test_build_researcher_prompt_includes_custom_instructions() {
-    let result =
-        context::build_researcher_prompt("test", Some("Always use TypeScript")).unwrap();
+    let result = context::build_researcher_prompt("test", Some("Always use TypeScript")).unwrap();
     assert!(result.prompt.contains("Always use TypeScript"));
     assert!(result.prompt.contains("Additional Instructions"));
 }
@@ -33,14 +32,8 @@ fn test_build_reviewer_prompt_includes_plan() {
     )
     .unwrap();
 
-    let result = context::build_reviewer_prompt(
-        &run_dir,
-        1,
-        "add feature X",
-        tmp.path(),
-        None,
-    )
-    .unwrap();
+    let result =
+        context::build_reviewer_prompt(&run_dir, 1, "add feature X", tmp.path(), None).unwrap();
 
     assert!(result.prompt.contains("Do the thing"));
     assert!(result.prompt.contains("add feature X"));
@@ -74,14 +67,8 @@ fn test_build_reviewer_prompt_includes_previous_iterations() {
     )
     .unwrap();
 
-    let result = context::build_reviewer_prompt(
-        &run_dir,
-        2,
-        "add feature X",
-        tmp.path(),
-        None,
-    )
-    .unwrap();
+    let result =
+        context::build_reviewer_prompt(&run_dir, 2, "add feature X", tmp.path(), None).unwrap();
 
     assert!(result.prompt.contains("previous review findings"));
     assert!(result.prompt.contains("previous judgment"));
@@ -115,14 +102,7 @@ fn test_build_judge_prompt_includes_review_and_security() {
     )
     .unwrap();
 
-    let result = context::build_judge_prompt(
-        &run_dir,
-        1,
-        "fix the bug",
-        tmp.path(),
-        None,
-    )
-    .unwrap();
+    let result = context::build_judge_prompt(&run_dir, 1, "fix the bug", tmp.path(), None).unwrap();
 
     assert!(result.prompt.contains("reviewer findings here"));
     assert!(result.prompt.contains("security findings here"));
@@ -140,14 +120,8 @@ fn test_build_security_prompt_includes_plan() {
     )
     .unwrap();
 
-    let result = context::build_security_prompt(
-        &run_dir,
-        1,
-        "add auth endpoint",
-        tmp.path(),
-        None,
-    )
-    .unwrap();
+    let result =
+        context::build_security_prompt(&run_dir, 1, "add auth endpoint", tmp.path(), None).unwrap();
 
     assert!(result.prompt.contains("plan with auth changes"));
     assert!(result.prompt.contains("security engineer"));
@@ -173,13 +147,7 @@ fn test_build_researcher_revision_prompt_includes_findings() {
     )
     .unwrap();
 
-    let result = context::build_researcher_revision_prompt(
-        &run_dir,
-        1,
-        tmp.path(),
-        None,
-    )
-    .unwrap();
+    let result = context::build_researcher_revision_prompt(&run_dir, 1, tmp.path(), None).unwrap();
 
     assert!(result.prompt.contains("original plan"));
     assert!(result.prompt.contains("missing migration"));
@@ -202,13 +170,8 @@ fn test_build_planner_prompt_includes_plan_and_summary() {
     )
     .unwrap();
 
-    let result = context::build_planner_prompt(
-        &run_dir,
-        "add dark mode",
-        tmp.path(),
-        None,
-    )
-    .unwrap();
+    let result =
+        context::build_planner_prompt(&run_dir, "add dark mode", tmp.path(), None).unwrap();
 
     assert!(result.prompt.contains("the approved plan"));
     assert!(result.prompt.contains("monorepo with 3 services"));
@@ -233,13 +196,8 @@ fn test_build_test_architect_prompt_includes_task_breakdown() {
     )
     .unwrap();
 
-    let result = context::build_test_architect_prompt(
-        &run_dir,
-        "fix the bug",
-        tmp.path(),
-        None,
-    )
-    .unwrap();
+    let result =
+        context::build_test_architect_prompt(&run_dir, "fix the bug", tmp.path(), None).unwrap();
 
     assert!(result.prompt.contains("plan content"));
     assert!(result.prompt.contains(r#""tasks": []"#));

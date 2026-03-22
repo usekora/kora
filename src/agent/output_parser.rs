@@ -164,7 +164,11 @@ fn parse_findings_block(block: &str) -> Option<ReviewSummary> {
     }
 
     Some(ReviewSummary {
-        total: if total > 0 { total } else { findings.len() as u32 },
+        total: if total > 0 {
+            total
+        } else {
+            findings.len() as u32
+        },
         findings,
     })
 }

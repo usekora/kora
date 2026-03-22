@@ -26,8 +26,8 @@ pub async fn run_planner(
     std::fs::create_dir_all(&plan_dir)?;
     std::fs::write(plan_dir.join("planner-output.md"), &output.text)?;
 
-    let json_text = extract_json_object(&output.text)
-        .context("planner output does not contain valid JSON")?;
+    let json_text =
+        extract_json_object(&output.text).context("planner output does not contain valid JSON")?;
 
     let breakdown: TaskBreakdown = output_parser::parse_task_breakdown(&json_text)
         .context("failed to parse task breakdown JSON")?;
@@ -52,11 +52,7 @@ pub fn validate_breakdown(breakdown: &TaskBreakdown) -> Result<()> {
     for task in &breakdown.tasks {
         for dep in &task.depends_on {
             if !ids.contains(dep.as_str()) {
-                anyhow::bail!(
-                    "task {} depends on non-existent task {}",
-                    task.id,
-                    dep
-                );
+                anyhow::bail!("task {} depends on non-existent task {}", task.id, dep);
             }
         }
     }

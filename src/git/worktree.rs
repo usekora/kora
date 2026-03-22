@@ -32,11 +32,7 @@ impl WorktreeManager {
         &self.repo_root
     }
 
-    pub async fn create_worktree(
-        &self,
-        task_id: &str,
-        branch_name: &str,
-    ) -> Result<PathBuf> {
+    pub async fn create_worktree(&self, task_id: &str, branch_name: &str) -> Result<PathBuf> {
         let worktree_dir = self
             .repo_root
             .parent()
@@ -200,11 +196,7 @@ impl WorktreeManager {
         Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
     }
 
-    pub async fn merge_branch(
-        &self,
-        target_dir: &Path,
-        branch_name: &str,
-    ) -> Result<MergeResult> {
+    pub async fn merge_branch(&self, target_dir: &Path, branch_name: &str) -> Result<MergeResult> {
         let output = Command::new("git")
             .current_dir(target_dir)
             .arg("merge")

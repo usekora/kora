@@ -68,10 +68,7 @@ pub fn handle_config(renderer: &mut Renderer, config: &Config) {
         "parallel limit: {}",
         config.implementation.parallel_limit
     ));
-    renderer.text(&format!(
-        "verbosity: {:?}",
-        config.output.default_verbosity
-    ));
+    renderer.text(&format!("verbosity: {:?}", config.output.default_verbosity));
 }
 
 pub fn handle_verbose(renderer: &mut Renderer, verbosity: &mut VerbosityState) {

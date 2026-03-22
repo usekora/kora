@@ -5,7 +5,9 @@ use std::time::Instant;
 use anyhow::{Context as AnyhowContext, Result};
 use tokio::sync::mpsc;
 
-use crate::agent::output_parser::{self, Task, TaskBreakdown, TaskResult, TaskStatus, TestStrategy};
+use crate::agent::output_parser::{
+    self, Task, TaskBreakdown, TaskResult, TaskStatus, TestStrategy,
+};
 use crate::config::Config;
 use crate::git::worktree::WorktreeManager;
 use crate::pipeline::context;
@@ -15,11 +17,24 @@ use crate::state::RunDirectory;
 #[derive(Debug, Clone, PartialEq)]
 pub enum ImplementationTaskStatus {
     Pending,
-    Blocked { waiting_on: Vec<String> },
-    Running { worktree_path: PathBuf, provider: String },
-    Complete { duration_secs: u64, files_changed: u32 },
-    Failed { error: String, attempts: u32 },
-    Conflict { details: String },
+    Blocked {
+        waiting_on: Vec<String>,
+    },
+    Running {
+        worktree_path: PathBuf,
+        provider: String,
+    },
+    Complete {
+        duration_secs: u64,
+        files_changed: u32,
+    },
+    Failed {
+        error: String,
+        attempts: u32,
+    },
+    Conflict {
+        details: String,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -94,7 +109,11 @@ impl ImplementationFleet {
             breakdown,
             test_strategy,
             worktree_manager,
-            run_dir: run_dir.plan_dir().parent().unwrap_or(project_root).to_path_buf(),
+            run_dir: run_dir
+                .plan_dir()
+                .parent()
+                .unwrap_or(project_root)
+                .to_path_buf(),
             task_states,
         }
     }

@@ -1,13 +1,11 @@
 use std::collections::HashMap;
 
 use kora::agent::output_parser::{
-    Task, TaskBreakdown, TaskFiles, TaskResult, TaskStatus, TestStrategy,
-    TestingPatterns, PostMergeTests,
+    PostMergeTests, Task, TaskBreakdown, TaskFiles, TaskResult, TaskStatus, TestStrategy,
+    TestingPatterns,
 };
 use kora::config::Config;
-use kora::pipeline::implementation::{
-    ImplementationFleet, ImplementationTaskStatus, TaskEvent,
-};
+use kora::pipeline::implementation::{ImplementationFleet, ImplementationTaskStatus, TaskEvent};
 use kora::state::RunDirectory;
 use tempfile::TempDir;
 
@@ -79,20 +77,14 @@ fn test_ready_tasks_returns_independent_tasks() {
 
 #[test]
 fn test_blocked_task_not_ready() {
-    let (fleet, _tmp) = make_fleet(vec![
-        make_task("T1", vec![]),
-        make_task("T2", vec!["T1"]),
-    ]);
+    let (fleet, _tmp) = make_fleet(vec![make_task("T1", vec![]), make_task("T2", vec!["T1"])]);
     let ready = fleet.ready_tasks();
     assert_eq!(ready, vec!["T1"]);
 }
 
 #[test]
 fn test_check_unblocked_transitions_blocked_to_pending() {
-    let (mut fleet, _tmp) = make_fleet(vec![
-        make_task("T1", vec![]),
-        make_task("T2", vec!["T1"]),
-    ]);
+    let (mut fleet, _tmp) = make_fleet(vec![make_task("T1", vec![]), make_task("T2", vec!["T1"])]);
 
     let event = TaskEvent::Completed {
         task_id: "T1".to_string(),
@@ -220,10 +212,7 @@ fn test_total_tasks() {
 
 #[test]
 fn test_failed_tasks_returns_failed_ids() {
-    let (mut fleet, _tmp) = make_fleet(vec![
-        make_task("T1", vec![]),
-        make_task("T2", vec![]),
-    ]);
+    let (mut fleet, _tmp) = make_fleet(vec![make_task("T1", vec![]), make_task("T2", vec![])]);
     fleet.handle_event(&TaskEvent::Failed {
         task_id: "T2".to_string(),
         error: "timeout".to_string(),
@@ -249,9 +238,6 @@ fn test_failed_tasks_returns_failed_ids() {
 
 #[test]
 fn test_merge_order_matches_breakdown() {
-    let (fleet, _tmp) = make_fleet(vec![
-        make_task("T1", vec![]),
-        make_task("T2", vec!["T1"]),
-    ]);
+    let (fleet, _tmp) = make_fleet(vec![make_task("T1", vec![]), make_task("T2", vec!["T1"])]);
     assert_eq!(fleet.merge_order(), &["T1", "T2"]);
 }

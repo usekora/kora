@@ -33,9 +33,8 @@ pub async fn run_validator(
     let report_path = validation_dir.join("report.md");
     std::fs::write(&report_path, &output.text)?;
 
-    let validation = output_parser::parse_validation(&output.text).context(
-        "validator output missing structured <!-- VALIDATION --> markers",
-    )?;
+    let validation = output_parser::parse_validation(&output.text)
+        .context("validator output missing structured <!-- VALIDATION --> markers")?;
 
     let status_json = serde_json::json!({
         "status": if validation.passed { "PASS" } else { "FAIL" },

@@ -41,9 +41,10 @@ pub async fn run_merge_flow(
     renderer.text("implementation and validation complete.");
     renderer.text("");
     renderer.text("task branches:");
-    for (id, state) in merge_order.iter().filter_map(|id| {
-        task_states.get(id).map(|s| (id, s))
-    }) {
+    for (id, state) in merge_order
+        .iter()
+        .filter_map(|id| task_states.get(id).map(|s| (id, s)))
+    {
         renderer.text(&format!("  {} -> {}", id, state.branch_name));
     }
     renderer.text("");
@@ -176,7 +177,10 @@ async fn merge_branches_sequentially(
                 if resolved {
                     merged.push(branch.clone());
                 } else {
-                    renderer.info(&format!("skipping branch {} due to unresolved conflict", branch));
+                    renderer.info(&format!(
+                        "skipping branch {} due to unresolved conflict",
+                        branch
+                    ));
                     failed.push(branch.clone());
                 }
             }
@@ -228,7 +232,10 @@ async fn attempt_conflict_resolution(
         return Ok(true);
     }
 
-    renderer.info(&format!("spawning agent to resolve conflict for {}", task_id));
+    renderer.info(&format!(
+        "spawning agent to resolve conflict for {}",
+        task_id
+    ));
 
     let no_flags: Vec<String> = vec![];
     let result = provider.run(&prompt, target_dir, &no_flags).await;

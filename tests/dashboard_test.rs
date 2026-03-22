@@ -39,10 +39,6 @@ fn test_dashboard_show_task_roundtrip() {
 
 #[test]
 fn test_dashboard_task_order() {
-    let dashboard = Dashboard::new(vec![
-        "T1".to_string(),
-        "T3".to_string(),
-        "T2".to_string(),
-    ]);
+    let dashboard = Dashboard::new(vec!["T1".to_string(), "T3".to_string(), "T2".to_string()]);
     assert_eq!(dashboard.task_order(), &["T1", "T3", "T2"]);
 }

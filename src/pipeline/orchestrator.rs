@@ -175,8 +175,8 @@ async fn run_planning_and_implementation(
     run_state.advance(Stage::Planning);
     run_state.save(runs_dir)?;
 
-    let planner_provider = get_provider(&config.agents.planner.provider)
-        .context("no provider for planner")?;
+    let planner_provider =
+        get_provider(&config.agents.planner.provider).context("no provider for planner")?;
     let planner_prompt = context::build_planner_prompt(
         &runs_dir.join(&run_state.id),
         &run_state.request,
@@ -334,8 +334,8 @@ async fn run_validation_and_merge(
 
         renderer.stage_header("validator", &format!("iteration {}", iteration));
 
-        let validator_provider = get_provider(&config.agents.validator.provider)
-            .context("no provider for validator")?;
+        let validator_provider =
+            get_provider(&config.agents.validator.provider).context("no provider for validator")?;
         let validator_prompt = context::build_validator_prompt(
             &runs_dir.join(&run_state.id),
             &run_state.request,
@@ -390,8 +390,8 @@ async fn run_validation_and_merge(
             return Ok(());
         }
 
-        let fix_provider = get_provider(&config.agents.implementor.provider)
-            .context("no provider for fixer")?;
+        let fix_provider =
+            get_provider(&config.agents.implementor.provider).context("no provider for fixer")?;
 
         let fix_prompt = context::build_fix_prompt(
             &runs_dir.join(&run_state.id),
@@ -543,7 +543,8 @@ async fn resume_pipeline(
             .await?;
         }
         Stage::Validating | Stage::Fixing => {
-            renderer.info("resuming validation is not yet supported; restarting from implementation");
+            renderer
+                .info("resuming validation is not yet supported; restarting from implementation");
             run_planning_and_implementation(
                 config,
                 run_state,
