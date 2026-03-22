@@ -9,7 +9,7 @@ use kora::cli::meta_commands::{self, MetaCommand};
 use kora::cli::resume;
 use kora::config;
 use kora::pipeline::orchestrator::{self, PipelineOptions};
-use kora::provider::detect_providers;
+use kora::provider::{detect_providers, ProviderKind};
 use kora::state::RunState;
 use kora::terminal::verbosity::VerbosityState;
 use kora::terminal::Renderer;
@@ -34,7 +34,7 @@ fn main() -> Result<()> {
             let mut renderer = Renderer::new();
 
             if detected.is_empty() {
-                eprintln!("  No AI CLI tools detected. Install claude or codex first.");
+                print_no_provider_error();
                 return Ok(());
             }
 
@@ -79,8 +79,7 @@ fn run_interactive_session(project_root: &std::path::Path) -> Result<()> {
     let mut renderer = Renderer::new();
 
     if detected.is_empty() {
-        eprintln!("  No AI CLI tools detected. Install claude or codex first.");
-        eprintln!("  Run `kora configure` after installing a provider.");
+        print_no_provider_error();
         return Ok(());
     }
 
@@ -176,4 +175,30 @@ fn load_latest_run(runs_dir: &std::path::Path) -> Result<RunState> {
     }
 
     latest.ok_or_else(|| anyhow::anyhow!("no runs found"))
+}
+
+fn print_no_provider_error() {
+    eprintln!();
+    eprintln!("  No AI CLI tools detected.");
+    eprintln!();
+    eprintln!("  Kora needs at least one AI coding agent installed:");
+    eprintln!();
+
+    let providers = [
+        (ProviderKind::Claude, "https://docs.anthropic.com/en/docs/claude-code"),
+        (ProviderKind::Codex, "https://github.com/openai/codex"),
+    ];
+
+    for (kind, url) in providers {
+        let installed = which::which(kind.cli_name()).is_ok();
+        let status = if installed { "✓ installed" } else { "✗ not found" };
+        eprintln!("    {}  {}", status, kind.cli_name());
+        if !installed {
+            eprintln!("         {}", url);
+        }
+    }
+
+    eprintln!();
+    eprintln!("  Install a provider, then run `kora configure` to set up.");
+    eprintln!();
 }
