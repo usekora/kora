@@ -2,3 +2,6 @@ pub mod context;
 pub mod orchestrator;
 pub mod researcher;
 pub mod review_loop;
+pub mod planner;
+pub mod test_architect;
+pub mod implementation;

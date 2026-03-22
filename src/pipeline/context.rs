@@ -1,6 +1,7 @@
 use anyhow::Result;
 use std::path::Path;
 
+use crate::agent::output_parser::Task;
 use crate::agent::prompts;
 
 pub struct PromptContext {
@@ -187,4 +188,102 @@ pub fn build_judge_prompt(
 
     let prompt = prompts::assemble_prompt(base, custom.as_deref(), &context);
     Ok(PromptContext { prompt })
+}
+
+pub fn build_planner_prompt(
+    run_dir: &Path,
+    request: &str,
+    project_root: &Path,
+    custom_instructions_path: Option<&Path>,
+) -> Result<PromptContext> {
+    let base = prompts::PLANNER_PROMPT;
+    let custom = load_custom_instructions(project_root, custom_instructions_path);
+
+    let plan = read_file_if_exists(&run_dir.join("context").join("researcher-plan.md"))
+        .unwrap_or_default();
+    let codebase_summary =
+        read_file_if_exists(&run_dir.join("context").join("codebase-summary.md"))
+            .unwrap_or_default();
+
+    let context = format!(
+        "## User Request\n\n{}\n\n\
+         ## Codebase Summary\n\n{}\n\n\
+         ## Approved Implementation Plan\n\n{}",
+        request, codebase_summary, plan
+    );
+
+    let prompt = prompts::assemble_prompt(base, custom.as_deref(), &context);
+    Ok(PromptContext { prompt })
+}
+
+pub fn build_test_architect_prompt(
+    run_dir: &Path,
+    request: &str,
+    project_root: &Path,
+    custom_instructions_path: Option<&Path>,
+) -> Result<PromptContext> {
+    let base = prompts::TEST_ARCHITECT_PROMPT;
+    let custom = load_custom_instructions(project_root, custom_instructions_path);
+
+    let plan = read_file_if_exists(&run_dir.join("context").join("researcher-plan.md"))
+        .unwrap_or_default();
+    let codebase_summary =
+        read_file_if_exists(&run_dir.join("context").join("codebase-summary.md"))
+            .unwrap_or_default();
+    let task_breakdown =
+        read_file_if_exists(&run_dir.join("plan").join("task-breakdown.json")).unwrap_or_default();
+
+    let context = format!(
+        "## User Request\n\n{}\n\n\
+         ## Codebase Summary\n\n{}\n\n\
+         ## Approved Implementation Plan\n\n{}\n\n\
+         ## Task Breakdown\n\n{}",
+        request, codebase_summary, plan, task_breakdown
+    );
+
+    let prompt = prompts::assemble_prompt(base, custom.as_deref(), &context);
+    Ok(PromptContext { prompt })
+}
+
+pub fn build_implementor_prompt(task: &Task, test_spec: &str) -> Result<String> {
+    let base = prompts::IMPLEMENTOR_PROMPT;
+
+    let task_section = format!(
+        "## Your Task\n\n\
+         **ID:** {}\n\
+         **Title:** {}\n\n\
+         {}\n\n\
+         **Files to create:** {}\n\
+         **Files to modify:** {}\n\
+         **Files to delete:** {}",
+        task.id,
+        task.title,
+        task.description,
+        if task.files.create.is_empty() {
+            "none".to_string()
+        } else {
+            task.files.create.join(", ")
+        },
+        if task.files.modify.is_empty() {
+            "none".to_string()
+        } else {
+            task.files.modify.join(", ")
+        },
+        if task.files.delete.is_empty() {
+            "none".to_string()
+        } else {
+            task.files.delete.join(", ")
+        },
+    );
+
+    let test_section = if test_spec.is_empty() {
+        "## Test Requirements\n\nNo specific test requirements for this task.".to_string()
+    } else {
+        format!("## Test Requirements\n\n{}", test_spec)
+    };
+
+    Ok(format!(
+        "{}\n\n---\n\n{}\n\n---\n\n{}",
+        base, task_section, test_section
+    ))
 }

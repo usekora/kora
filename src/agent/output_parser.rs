@@ -1,3 +1,95 @@
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TaskBreakdown {
+    pub tasks: Vec<Task>,
+    pub branch_strategy: String,
+    pub merge_order: Vec<String>,
+    pub critical_path: Vec<String>,
+    pub parallelism_summary: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Task {
+    pub id: String,
+    pub title: String,
+    pub description: String,
+    pub files: TaskFiles,
+    pub depends_on: Vec<String>,
+    pub estimated_complexity: String,
+    #[serde(default)]
+    pub conflict_risk: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TaskFiles {
+    pub create: Vec<String>,
+    pub modify: Vec<String>,
+    pub delete: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TestStrategy {
+    pub per_task: HashMap<String, TaskTestSpec>,
+    pub post_merge: PostMergeTests,
+    pub testing_patterns: TestingPatterns,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TaskTestSpec {
+    pub unit_tests: Vec<TestSpec>,
+    pub integration_tests: Vec<TestSpec>,
+    pub edge_case_tests: Vec<TestSpec>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TestSpec {
+    pub description: String,
+    pub file: String,
+    pub setup: String,
+    pub expected: String,
+    pub rationale: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PostMergeTests {
+    pub integration_tests: Vec<PostMergeTestSpec>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PostMergeTestSpec {
+    pub description: String,
+    pub tasks_involved: Vec<String>,
+    pub setup: String,
+    pub expected: String,
+    pub rationale: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TestingPatterns {
+    pub framework: String,
+    pub conventions: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum TaskStatus {
+    Complete,
+    Failed,
+    Conflict,
+}
+
+#[derive(Debug, Clone)]
+pub struct TaskResult {
+    pub status: TaskStatus,
+    pub changes: Vec<String>,
+    pub tests_written: u32,
+    pub tests_passing: u32,
+    pub tests_failing: u32,
+    pub conflicts: Vec<String>,
+    pub observations: Vec<String>,
+}
+
 #[derive(Debug, Clone)]
 pub struct Verdict {
     pub findings: Vec<FindingVerdict>,
@@ -177,4 +269,101 @@ pub fn parse_validation(text: &str) -> Option<ValidationResult> {
         tests_failed,
         type_check_passed: type_check,
     })
+}
+
+pub fn parse_task_breakdown(text: &str) -> Result<TaskBreakdown, serde_json::Error> {
+    serde_json::from_str(text)
+}
+
+pub fn parse_test_strategy(text: &str) -> Result<TestStrategy, serde_json::Error> {
+    serde_json::from_str(text)
+}
+
+pub fn extract_json_object(text: &str) -> Option<String> {
+    let start = text.find('{')?;
+    let end = text.rfind('}')?;
+    if end > start {
+        Some(text[start..=end].to_string())
+    } else {
+        None
+    }
+}
+
+pub fn parse_task_result(text: &str) -> Option<TaskResult> {
+    let status = if text.contains("Status: COMPLETE") || text.contains("Status:COMPLETE") {
+        TaskStatus::Complete
+    } else if text.contains("Status: FAILED") || text.contains("Status:FAILED") {
+        TaskStatus::Failed
+    } else if text.contains("Status: CONFLICT") || text.contains("Status:CONFLICT") {
+        TaskStatus::Conflict
+    } else {
+        return None;
+    };
+
+    let changes = extract_section_items(text, "## Changes Made");
+    let conflicts = extract_section_items(text, "## Conflicts");
+    let observations = extract_section_items(text, "## Out of Scope Observations");
+
+    let (tests_written, tests_passing, tests_failing) = parse_test_counts(text);
+
+    Some(TaskResult {
+        status,
+        changes,
+        tests_written,
+        tests_passing,
+        tests_failing,
+        conflicts,
+        observations,
+    })
+}
+
+fn extract_section_items(text: &str, header: &str) -> Vec<String> {
+    let mut items = Vec::new();
+    let mut in_section = false;
+
+    for line in text.lines() {
+        if line.trim().starts_with(header) {
+            in_section = true;
+            continue;
+        }
+        if in_section {
+            if line.starts_with("## ") {
+                break;
+            }
+            let trimmed = line.trim().trim_start_matches('-').trim();
+            if !trimmed.is_empty() {
+                items.push(trimmed.to_string());
+            }
+        }
+    }
+
+    items
+}
+
+fn parse_test_counts(text: &str) -> (u32, u32, u32) {
+    let mut written = 0u32;
+    let mut passing = 0u32;
+    let mut failing = 0u32;
+
+    for line in text.lines() {
+        let trimmed = line.trim().trim_start_matches('-').trim();
+        if trimmed.contains("tests written") || trimmed.contains("test written") {
+            let nums: Vec<u32> = trimmed
+                .split_whitespace()
+                .filter_map(|w| w.parse().ok())
+                .collect();
+            if nums.len() >= 3 {
+                written = nums[0];
+                passing = nums[1];
+                failing = nums[2];
+            } else if nums.len() == 2 {
+                written = nums[0];
+                passing = nums[1];
+            } else if let Some(&n) = nums.first() {
+                written = n;
+            }
+        }
+    }
+
+    (written, passing, failing)
 }

@@ -206,6 +206,33 @@ impl Renderer {
         let label = format!("review loop · iteration {} of {}", iteration, max);
         self.stage_header(&label, "running");
     }
+
+    pub fn implementation_complete(&mut self, total_tasks: usize, total_duration_secs: u64) {
+        execute!(
+            self.stdout,
+            Print("\n  "),
+            SetForegroundColor(Color::Green),
+            Print(format!(
+                "all {} tasks complete in {}s",
+                total_tasks, total_duration_secs
+            )),
+            ResetColor,
+            Print("\n"),
+        )
+        .ok();
+    }
+
+    pub fn task_failure(&mut self, task_id: &str, error: &str) {
+        execute!(
+            self.stdout,
+            Print("\n  "),
+            SetForegroundColor(Color::Red),
+            Print(format!("task {} failed: {}", task_id, error)),
+            ResetColor,
+            Print("\n"),
+        )
+        .ok();
+    }
 }
 
 impl Default for Renderer {

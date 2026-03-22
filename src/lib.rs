@@ -5,3 +5,4 @@ pub mod agent;
 pub mod terminal;
 pub mod cli;
 pub mod pipeline;
+pub mod git;
