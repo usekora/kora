@@ -103,8 +103,10 @@ fn apply_claude_codex(preset: PipelinePreset, agents: &mut AgentsConfig) {
             set_provider(&mut agents.validator, "codex");
         }
         PipelinePreset::Balanced => {
-            // Claude for core, Codex for lightweight
+            // Claude for research/planning/implementation, Codex for review/validation
             set_all_providers(agents, "claude");
+            set_provider(&mut agents.plan_reviewer, "codex");
+            set_provider(&mut agents.code_reviewer, "codex");
             set_provider(&mut agents.test_architect, "codex");
             set_provider(&mut agents.validator, "codex");
         }
