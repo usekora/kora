@@ -12,8 +12,8 @@
 
 ## Architecture
 
-Rust binary. Eight AI agent roles orchestrated through a pipeline:
-Researcher → Reviewer + Security Auditor (parallel) → Judge → Planner → Test Architect → Implementors (parallel fleet) → Validator
+Rust binary. Ten AI agent roles orchestrated through a pipeline:
+Researcher → Plan Reviewer + Plan Security Auditor (parallel) → Judge → Planner → Test Architect → Implementors (parallel fleet) → Code Reviewer + Code Security Auditor (parallel, per task) → Validator
 
 ### Module layout
 - `src/cli/` — clap CLI definition, configure wizard, resume/history/clean commands, meta commands

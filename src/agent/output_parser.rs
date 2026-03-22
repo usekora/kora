@@ -222,6 +222,16 @@ pub fn parse_security_review(text: &str) -> Option<ReviewSummary> {
     parse_findings_block(&block)
 }
 
+pub fn parse_code_review(text: &str) -> Option<ReviewSummary> {
+    let block = extract_block(text, "<!-- CODE_REVIEW -->", "<!-- /CODE_REVIEW -->")?;
+    parse_findings_block(&block)
+}
+
+pub fn parse_code_security_review(text: &str) -> Option<ReviewSummary> {
+    let block = extract_block(text, "<!-- CODE_SECURITY -->", "<!-- /CODE_SECURITY -->")?;
+    parse_findings_block(&block)
+}
+
 pub fn extract_plan(text: &str) -> Option<String> {
     extract_block(text, "<!-- PLAN -->", "<!-- /PLAN -->")
 }

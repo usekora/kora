@@ -28,12 +28,14 @@ pub fn run_configure(project_root: &Path) -> Result<()> {
     if assign_idx == 1 {
         let roles = [
             "researcher",
-            "reviewer",
-            "security_auditor",
+            "plan_reviewer",
+            "plan_security_auditor",
             "judge",
             "planner",
             "test_architect",
             "implementor",
+            "code_reviewer",
+            "code_security_auditor",
             "validator",
         ];
         let mut options: Vec<&str> = vec!["default"];
@@ -44,12 +46,14 @@ pub fn run_configure(project_root: &Path) -> Result<()> {
             let provider = options[idx].to_string();
             match role {
                 "researcher" => config.agents.researcher.provider = provider,
-                "reviewer" => config.agents.reviewer.provider = provider,
-                "security_auditor" => config.agents.security_auditor.provider = provider,
+                "plan_reviewer" => config.agents.plan_reviewer.provider = provider,
+                "plan_security_auditor" => config.agents.plan_security_auditor.provider = provider,
                 "judge" => config.agents.judge.provider = provider,
                 "planner" => config.agents.planner.provider = provider,
                 "test_architect" => config.agents.test_architect.provider = provider,
                 "implementor" => config.agents.implementor.provider = provider,
+                "code_reviewer" => config.agents.code_reviewer.provider = provider,
+                "code_security_auditor" => config.agents.code_security_auditor.provider = provider,
                 "validator" => config.agents.validator.provider = provider,
                 _ => {}
             }

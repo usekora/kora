@@ -124,7 +124,7 @@ fn test_build_security_prompt_includes_plan() {
         context::build_security_prompt(&run_dir, 1, "add auth endpoint", tmp.path(), None).unwrap();
 
     assert!(result.prompt.contains("plan with auth changes"));
-    assert!(result.prompt.contains("security engineer"));
+    assert!(result.prompt.contains("plan security auditor"));
 }
 
 #[test]

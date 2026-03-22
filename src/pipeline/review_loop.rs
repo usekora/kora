@@ -37,17 +37,17 @@ pub async fn run_review_loop(
         run_state.advance(Stage::Reviewing);
         run_state.save(runs_dir)?;
 
-        let reviewer_provider = get_provider(&config.agents.reviewer.provider)
-            .context("no provider available for reviewer")?;
-        let security_provider = get_provider(&config.agents.security_auditor.provider)
-            .context("no provider available for security auditor")?;
+        let reviewer_provider = get_provider(&config.agents.plan_reviewer.provider)
+            .context("no provider available for plan reviewer")?;
+        let security_provider = get_provider(&config.agents.plan_security_auditor.provider)
+            .context("no provider available for plan security auditor")?;
 
         let review_prompt = context::build_reviewer_prompt(
             &runs_dir.join(&run_state.id),
             iteration,
             &run_state.request,
             project_root,
-            config.agents.reviewer.custom_instructions.as_deref(),
+            config.agents.plan_reviewer.custom_instructions.as_deref(),
         )?;
         let security_prompt = context::build_security_prompt(
             &runs_dir.join(&run_state.id),
@@ -56,14 +56,16 @@ pub async fn run_review_loop(
             project_root,
             config
                 .agents
-                .security_auditor
+                .plan_security_auditor
                 .custom_instructions
                 .as_deref(),
         )?;
 
-        let reviewer_timeout = Some(Duration::from_secs(config.agents.reviewer.timeout_seconds));
+        let reviewer_timeout = Some(Duration::from_secs(
+            config.agents.plan_reviewer.timeout_seconds,
+        ));
         let security_timeout = Some(Duration::from_secs(
-            config.agents.security_auditor.timeout_seconds,
+            config.agents.plan_security_auditor.timeout_seconds,
         ));
 
         let (review_result, security_result) = tokio::join!(

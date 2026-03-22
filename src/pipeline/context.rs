@@ -329,6 +329,80 @@ pub fn build_fix_prompt(
     Ok(PromptContext { prompt })
 }
 
+pub fn build_code_reviewer_prompt(
+    run_dir: &Path,
+    task_id: &str,
+    git_diff: &str,
+    custom_instructions_path: Option<&Path>,
+    project_root: &Path,
+) -> Result<PromptContext> {
+    let base = prompts::CODE_REVIEWER_PROMPT;
+    let custom = load_custom_instructions(project_root, custom_instructions_path);
+
+    let task_result = read_file_if_exists(
+        &run_dir
+            .join("implementation")
+            .join(format!("task-{}", task_id))
+            .join("TASK_RESULT.md"),
+    )
+    .unwrap_or_default();
+
+    let task_prompt = read_file_if_exists(
+        &run_dir
+            .join("implementation")
+            .join(format!("task-{}", task_id))
+            .join("prompt.md"),
+    )
+    .unwrap_or_default();
+
+    let context = format!(
+        "## Task Spec\n\n{}\n\n\
+         ## Task Result\n\n{}\n\n\
+         ## Git Diff\n\n```diff\n{}\n```",
+        task_prompt, task_result, git_diff
+    );
+
+    let prompt = prompts::assemble_prompt(base, custom.as_deref(), &context);
+    Ok(PromptContext { prompt })
+}
+
+pub fn build_code_security_auditor_prompt(
+    run_dir: &Path,
+    task_id: &str,
+    git_diff: &str,
+    custom_instructions_path: Option<&Path>,
+    project_root: &Path,
+) -> Result<PromptContext> {
+    let base = prompts::CODE_SECURITY_AUDITOR_PROMPT;
+    let custom = load_custom_instructions(project_root, custom_instructions_path);
+
+    let task_result = read_file_if_exists(
+        &run_dir
+            .join("implementation")
+            .join(format!("task-{}", task_id))
+            .join("TASK_RESULT.md"),
+    )
+    .unwrap_or_default();
+
+    let task_prompt = read_file_if_exists(
+        &run_dir
+            .join("implementation")
+            .join(format!("task-{}", task_id))
+            .join("prompt.md"),
+    )
+    .unwrap_or_default();
+
+    let context = format!(
+        "## Task Spec\n\n{}\n\n\
+         ## Task Result\n\n{}\n\n\
+         ## Git Diff\n\n```diff\n{}\n```",
+        task_prompt, task_result, git_diff
+    );
+
+    let prompt = prompts::assemble_prompt(base, custom.as_deref(), &context);
+    Ok(PromptContext { prompt })
+}
+
 pub fn build_implementor_prompt(task: &Task, test_spec: &str) -> Result<String> {
     let base = prompts::IMPLEMENTOR_PROMPT;
 

@@ -271,6 +271,22 @@ impl ImplementationFleet {
             self.config.agents.implementor.timeout_seconds,
         ));
 
+        let code_reviewer_provider = get_provider(&self.config.agents.code_reviewer.provider);
+        let code_security_provider =
+            get_provider(&self.config.agents.code_security_auditor.provider);
+        let code_reviewer_timeout =
+            Duration::from_secs(self.config.agents.code_reviewer.timeout_seconds);
+        let code_security_timeout =
+            Duration::from_secs(self.config.agents.code_security_auditor.timeout_seconds);
+        let run_dir_clone = self.run_dir.clone();
+        let code_reviewer_custom = self.config.agents.code_reviewer.custom_instructions.clone();
+        let code_security_custom = self
+            .config
+            .agents
+            .code_security_auditor
+            .custom_instructions
+            .clone();
+
         tokio::spawn(async move {
             let start = Instant::now();
             let result = provider.run(&prompt, &wt_path, &no_flags, timeout).await;
@@ -294,6 +310,25 @@ impl ImplementationFleet {
 
                     match parsed {
                         Some(tr) => {
+                            if tr.status == TaskStatus::Complete {
+                                run_code_review_loop(
+                                    &task_id_owned,
+                                    &wt_path,
+                                    &task_dir,
+                                    &run_dir_clone,
+                                    &no_flags,
+                                    code_reviewer_provider.as_deref(),
+                                    code_security_provider.as_deref(),
+                                    code_reviewer_timeout,
+                                    code_security_timeout,
+                                    code_reviewer_custom.as_deref(),
+                                    code_security_custom.as_deref(),
+                                    provider.as_ref(),
+                                    timeout,
+                                )
+                                .await;
+                            }
+
                             let _ = tx
                                 .send(TaskEvent::Completed {
                                     task_id: task_id_owned,
@@ -395,5 +430,128 @@ impl ImplementationFleet {
 
     pub fn merge_order(&self) -> &[String] {
         &self.breakdown.merge_order
+    }
+}
+
+const MAX_CODE_REVIEW_ITERATIONS: u32 = 2;
+
+async fn get_worktree_diff(worktree_path: &Path) -> String {
+    let output = tokio::process::Command::new("git")
+        .current_dir(worktree_path)
+        .args(["diff", "HEAD~1", "--no-color"])
+        .output()
+        .await;
+
+    match output {
+        Ok(o) => String::from_utf8_lossy(&o.stdout).to_string(),
+        Err(_) => String::new(),
+    }
+}
+
+fn has_high_severity(summary: &Option<output_parser::ReviewSummary>) -> bool {
+    summary
+        .as_ref()
+        .is_some_and(|s| s.findings.iter().any(|f| f.severity == "HIGH"))
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn run_code_review_loop(
+    task_id: &str,
+    wt_path: &Path,
+    task_dir: &Path,
+    run_dir: &Path,
+    no_flags: &[String],
+    code_reviewer: Option<&dyn Provider>,
+    code_security: Option<&dyn Provider>,
+    reviewer_timeout: Duration,
+    security_timeout: Duration,
+    reviewer_custom: Option<&Path>,
+    security_custom: Option<&Path>,
+    implementor: &dyn Provider,
+    implementor_timeout: Option<Duration>,
+) {
+    let (Some(reviewer), Some(security)) = (code_reviewer, code_security) else {
+        return;
+    };
+
+    for iteration in 1..=MAX_CODE_REVIEW_ITERATIONS {
+        let diff = get_worktree_diff(wt_path).await;
+        if diff.is_empty() {
+            return;
+        }
+
+        let review_prompt =
+            context::build_code_reviewer_prompt(run_dir, task_id, &diff, reviewer_custom, wt_path);
+        let security_prompt = context::build_code_security_auditor_prompt(
+            run_dir,
+            task_id,
+            &diff,
+            security_custom,
+            wt_path,
+        );
+
+        let (review_prompt, security_prompt) = match (review_prompt, security_prompt) {
+            (Ok(r), Ok(s)) => (r, s),
+            _ => return,
+        };
+
+        let (review_result, security_result) = tokio::join!(
+            reviewer.run(
+                &review_prompt.prompt,
+                wt_path,
+                no_flags,
+                Some(reviewer_timeout),
+            ),
+            security.run(
+                &security_prompt.prompt,
+                wt_path,
+                no_flags,
+                Some(security_timeout),
+            ),
+        );
+
+        let review_dir = task_dir.join(format!("code-review-{}", iteration));
+        let _ = std::fs::create_dir_all(&review_dir);
+
+        let review_text = review_result
+            .as_ref()
+            .map(|o| o.text.clone())
+            .unwrap_or_default();
+        let security_text = security_result
+            .as_ref()
+            .map(|o| o.text.clone())
+            .unwrap_or_default();
+
+        let _ = std::fs::write(review_dir.join("code-review.md"), &review_text);
+        let _ = std::fs::write(review_dir.join("code-security.md"), &security_text);
+
+        let review_summary = output_parser::parse_code_review(&review_text);
+        let security_summary = output_parser::parse_code_security_review(&security_text);
+
+        let has_high = has_high_severity(&review_summary) || has_high_severity(&security_summary);
+
+        if !has_high {
+            return;
+        }
+
+        if iteration >= MAX_CODE_REVIEW_ITERATIONS {
+            let _ = std::fs::write(
+                review_dir.join("WARNING.md"),
+                "Code review found HIGH severity issues but max iterations reached.",
+            );
+            return;
+        }
+
+        let fix_context = format!(
+            "## Code Review Findings (Iteration {})\n\n\
+             You must fix the HIGH severity findings below before your task is complete.\n\n\
+             ### Code Review\n\n{}\n\n\
+             ### Code Security Review\n\n{}",
+            iteration, review_text, security_text
+        );
+
+        let _ = implementor
+            .run(&fix_context, wt_path, no_flags, implementor_timeout)
+            .await;
     }
 }

@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Multi-agent development orchestration CLI</strong><br>
-  One command. Eight AI agents. Production-ready code changes.
+  One command. Ten AI agents. Production-ready code changes.
 </p>
 
 <p align="center">
@@ -35,16 +35,20 @@ $ kora
 ```mermaid
 graph LR
     A[You] -->|describe| B(Researcher)
-    B -->|plan| C(Reviewer)
-    B -->|plan| D(Security Auditor)
+    B -->|plan| C(Plan Reviewer)
+    B -->|plan| D(Plan Security Auditor)
     C -->|findings| E(Judge)
     D -->|findings| E
     E -->|revise| B
     E -->|approve| F(Planner)
     F -->|tasks| G(Test Architect)
     G -->|specs| H(Implementors)
-    H -->|code| I(Validator)
-    I -->|done| J[Your branches]
+    H -->|code| I(Code Reviewer)
+    H -->|code| K(Code Security Auditor)
+    I -->|findings| H
+    K -->|findings| H
+    H -->|done| J(Validator)
+    J -->|done| L[Your branches]
 
     style A fill:#1a1a2e,stroke:#e94560,color:#fff
     style B fill:#16213e,stroke:#0f3460,color:#fff
@@ -55,20 +59,24 @@ graph LR
     style G fill:#16213e,stroke:#0f3460,color:#fff
     style H fill:#16213e,stroke:#0f3460,color:#fff
     style I fill:#16213e,stroke:#0f3460,color:#fff
-    style J fill:#1a1a2e,stroke:#e94560,color:#fff
+    style J fill:#16213e,stroke:#0f3460,color:#fff
+    style K fill:#16213e,stroke:#0f3460,color:#fff
+    style L fill:#1a1a2e,stroke:#e94560,color:#fff
 ```
 
-**Eight agents, one pipeline:**
+**Ten agents, one pipeline:**
 
 | Agent | Role |
 |-------|------|
 | **Researcher** | Explores codebase, clarifies requirements, proposes plan |
-| **Reviewer** | Finds bugs, missing edge cases, architectural issues |
-| **Security Auditor** | OWASP, auth, secrets, injection, dependency risks |
+| **Plan Reviewer** | Finds bugs, missing edge cases, architectural issues in the plan |
+| **Plan Security Auditor** | Reviews plan for security implications |
 | **Judge** | Filters nitpicks from real issues, decides what to fix |
 | **Planner** | Breaks plan into parallel tasks with dependency graph |
 | **Test Architect** | Designs test strategy before code is written |
 | **Implementors** | Fleet of agents executing tasks in parallel git worktrees |
+| **Code Reviewer** | Reviews actual code diffs for bugs and quality |
+| **Code Security Auditor** | Reviews actual code diffs for security vulnerabilities |
 | **Validator** | Checks implementation matches plan, runs tests, detects drift |
 
 ## Key features

@@ -248,6 +248,17 @@ impl WorktreeManager {
         Ok(MergeResult::Success)
     }
 
+    pub async fn get_diff(&self, worktree_path: &Path) -> Result<String> {
+        let output = Command::new("git")
+            .current_dir(worktree_path)
+            .args(["diff", "HEAD~1", "--no-color"])
+            .output()
+            .await
+            .context("failed to run git diff")?;
+
+        Ok(String::from_utf8_lossy(&output.stdout).to_string())
+    }
+
     async fn list_conflict_files(&self, dir: &Path) -> Result<Vec<String>> {
         let output = Command::new("git")
             .current_dir(dir)

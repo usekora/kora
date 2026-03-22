@@ -44,12 +44,14 @@ fn default_timeout() -> u64 {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AgentsConfig {
     pub researcher: AgentConfig,
-    pub reviewer: AgentConfig,
-    pub security_auditor: AgentConfig,
+    pub plan_reviewer: AgentConfig,
+    pub plan_security_auditor: AgentConfig,
     pub judge: AgentConfig,
     pub planner: AgentConfig,
     pub test_architect: AgentConfig,
     pub implementor: AgentConfig,
+    pub code_reviewer: AgentConfig,
+    pub code_security_auditor: AgentConfig,
     pub validator: AgentConfig,
 }
 
@@ -115,12 +117,14 @@ impl Default for Config {
             providers,
             agents: AgentsConfig {
                 researcher: default_agent.clone(),
-                reviewer: default_agent.clone(),
-                security_auditor: default_agent.clone(),
+                plan_reviewer: default_agent.clone(),
+                plan_security_auditor: default_agent.clone(),
                 judge: default_agent.clone(),
                 planner: default_agent.clone(),
                 test_architect: default_agent.clone(),
                 implementor: default_agent.clone(),
+                code_reviewer: default_agent.clone(),
+                code_security_auditor: default_agent.clone(),
                 validator: default_agent,
             },
             checkpoints: vec![Checkpoint::AfterResearcher, Checkpoint::AfterPlanner],
