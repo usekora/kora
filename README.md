@@ -15,6 +15,7 @@
 </p>
 
 <p align="center">
+  <a href="https://usekora.github.io/kora/"><img src="https://img.shields.io/badge/website-usekora.github.io-6C5CE7" alt="Website" /></a>
   <a href="#install"><img src="https://img.shields.io/badge/install-4%20methods-blue" alt="Install" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License" /></a>
   <img src="https://img.shields.io/badge/language-rust-orange" alt="Rust" />
