@@ -233,6 +233,63 @@ impl Renderer {
         )
         .ok();
     }
+
+    pub fn validation_result(
+        &mut self,
+        passed: bool,
+        blocking: u32,
+        minor: u32,
+        tests_passed: u32,
+        tests_failed: u32,
+    ) {
+        let (icon, color) = if passed {
+            ("✓", Color::Green)
+        } else {
+            ("✗", Color::Red)
+        };
+
+        execute!(
+            self.stdout,
+            Print("\n  "),
+            SetForegroundColor(color),
+            Print(format!("{} validation {}", icon, if passed { "passed" } else { "failed" })),
+            ResetColor,
+            Print(format!(
+                "  blocking: {}  minor: {}  tests: {} passed, {} failed\n",
+                blocking, minor, tests_passed, tests_failed
+            )),
+        )
+        .ok();
+    }
+
+    pub fn merge_info(&mut self, message: &str) {
+        execute!(
+            self.stdout,
+            Print("  "),
+            SetForegroundColor(Color::Cyan),
+            Print("↳ "),
+            ResetColor,
+            Print(format!("{}\n", message)),
+        )
+        .ok();
+    }
+
+    pub fn run_complete(&mut self, run_id: &str) {
+        execute!(
+            self.stdout,
+            Print("\n"),
+            SetForegroundColor(Color::Green),
+            SetAttribute(Attribute::Bold),
+            Print("  ✓ run complete"),
+            SetAttribute(Attribute::Reset),
+            ResetColor,
+            SetForegroundColor(Color::DarkGrey),
+            Print(format!("  ({})", run_id)),
+            ResetColor,
+            Print("\n"),
+        )
+        .ok();
+    }
 }
 
 impl Default for Renderer {

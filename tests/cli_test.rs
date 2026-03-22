@@ -1,5 +1,6 @@
 use assert_cmd::Command;
 use predicates::prelude::*;
+use tempfile::TempDir;
 
 #[test]
 fn test_kora_help() {
@@ -24,31 +25,37 @@ fn test_kora_version() {
 }
 
 #[test]
-fn test_kora_resume_placeholder() {
+fn test_kora_resume_no_runs() {
+    let tmp = TempDir::new().unwrap();
     Command::cargo_bin("kora")
         .unwrap()
         .arg("resume")
+        .current_dir(tmp.path())
         .assert()
         .success()
-        .stdout(predicate::str::contains("not yet implemented"));
+        .stdout(predicate::str::contains("no interrupted runs"));
 }
 
 #[test]
-fn test_kora_history_placeholder() {
+fn test_kora_history_no_runs() {
+    let tmp = TempDir::new().unwrap();
     Command::cargo_bin("kora")
         .unwrap()
         .arg("history")
+        .current_dir(tmp.path())
         .assert()
         .success()
-        .stdout(predicate::str::contains("not yet implemented"));
+        .stdout(predicate::str::contains("no run history"));
 }
 
 #[test]
-fn test_kora_clean_placeholder() {
+fn test_kora_clean_no_runs() {
+    let tmp = TempDir::new().unwrap();
     Command::cargo_bin("kora")
         .unwrap()
         .arg("clean")
+        .current_dir(tmp.path())
         .assert()
         .success()
-        .stdout(predicate::str::contains("not yet implemented"));
+        .stdout(predicate::str::contains("no run data to clean"));
 }

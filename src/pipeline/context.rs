@@ -245,6 +245,90 @@ pub fn build_test_architect_prompt(
     Ok(PromptContext { prompt })
 }
 
+pub fn build_validator_prompt(
+    run_dir: &Path,
+    request: &str,
+    project_root: &Path,
+    custom_instructions_path: Option<&Path>,
+) -> Result<PromptContext> {
+    let base = prompts::VALIDATOR_PROMPT;
+    let custom = load_custom_instructions(project_root, custom_instructions_path);
+
+    let plan = read_file_if_exists(&run_dir.join("context").join("researcher-plan.md"))
+        .unwrap_or_default();
+    let codebase_summary =
+        read_file_if_exists(&run_dir.join("context").join("codebase-summary.md"))
+            .unwrap_or_default();
+    let task_breakdown =
+        read_file_if_exists(&run_dir.join("plan").join("task-breakdown.json")).unwrap_or_default();
+    let test_strategy =
+        read_file_if_exists(&run_dir.join("plan").join("test-strategy.json")).unwrap_or_default();
+
+    let impl_dir = run_dir.join("implementation");
+    let mut task_results = String::new();
+    if impl_dir.exists() {
+        if let Ok(entries) = std::fs::read_dir(&impl_dir) {
+            let mut sorted: Vec<_> = entries.filter_map(|e| e.ok()).collect();
+            sorted.sort_by_key(|e| e.file_name());
+            for entry in sorted {
+                if entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
+                    let task_id = entry.file_name().to_string_lossy().to_string();
+                    let result_path = entry.path().join("TASK_RESULT.md");
+                    if let Some(content) = read_file_if_exists(&result_path) {
+                        task_results.push_str(&format!(
+                            "\n### {} Result\n\n{}\n",
+                            task_id, content
+                        ));
+                    }
+                }
+            }
+        }
+    }
+
+    let context = format!(
+        "## User Request\n\n{}\n\n\
+         ## Codebase Summary\n\n{}\n\n\
+         ## Approved Implementation Plan\n\n{}\n\n\
+         ## Task Breakdown\n\n{}\n\n\
+         ## Test Strategy\n\n{}\n\n\
+         ## Task Results\n\n{}",
+        request, codebase_summary, plan, task_breakdown, test_strategy, task_results
+    );
+
+    let prompt = prompts::assemble_prompt(base, custom.as_deref(), &context);
+    Ok(PromptContext { prompt })
+}
+
+pub fn build_fix_prompt(
+    run_dir: &Path,
+    request: &str,
+    fix_descriptions: &[String],
+    project_root: &Path,
+    custom_instructions_path: Option<&Path>,
+) -> Result<PromptContext> {
+    let base = prompts::IMPLEMENTOR_PROMPT;
+    let custom = load_custom_instructions(project_root, custom_instructions_path);
+
+    let plan = read_file_if_exists(&run_dir.join("context").join("researcher-plan.md"))
+        .unwrap_or_default();
+
+    let fixes_section = fix_descriptions.join("\n\n---\n\n");
+
+    let context = format!(
+        "## Fix Mode\n\n\
+         You are fixing issues found by the validator after implementation.\n\n\
+         ## User Request\n\n{}\n\n\
+         ## Original Plan\n\n{}\n\n\
+         ## Required Fixes\n\n{}\n\n\
+         Fix all listed issues. Run tests after each fix to verify correctness.\n\
+         Do not modify anything outside the scope of these fixes.",
+        request, plan, fixes_section
+    );
+
+    let prompt = prompts::assemble_prompt(base, custom.as_deref(), &context);
+    Ok(PromptContext { prompt })
+}
+
 pub fn build_implementor_prompt(task: &Task, test_spec: &str) -> Result<String> {
     let base = prompts::IMPLEMENTOR_PROMPT;
 

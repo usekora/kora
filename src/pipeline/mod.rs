@@ -5,3 +5,5 @@ pub mod review_loop;
 pub mod planner;
 pub mod test_architect;
 pub mod implementation;
+pub mod validation;
+pub mod merge;
