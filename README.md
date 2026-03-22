@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Multi-agent development orchestration CLI</strong><br>
-  One command. Ten AI agents. Production-ready code changes.
+  One command to research, plan, implement, review, and validate code changes.
 </p>
 
 <p align="center">
@@ -66,7 +66,7 @@ graph LR
     style M fill:#16213e,stroke:#0f3460,color:#fff
 ```
 
-**Ten agents, one pipeline:**
+**Specialized agents, one pipeline:**
 
 | Agent | Role |
 |-------|------|
