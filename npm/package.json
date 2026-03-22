@@ -1,0 +1,22 @@
+{
+  "name": "kora-ai",
+  "version": "0.1.0",
+  "description": "Multi-agent development orchestration CLI",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kora-ai/kora"
+  },
+  "bin": {
+    "kora": "bin/kora"
+  },
+  "scripts": {
+    "postinstall": "node install.js"
+  },
+  "files": [
+    "bin/",
+    "install.js"
+  ],
+  "os": ["darwin", "linux"],
+  "cpu": ["x64", "arm64"]
+}

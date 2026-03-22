@@ -1,0 +1,29 @@
+[package]
+name = "kora"
+version = "0.1.0"
+edition = "2021"
+description = "Multi-agent development orchestration CLI"
+license = "MIT"
+repository = "https://github.com/kora-ai/kora"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
+crossterm = "0.28"
+termimad = "0.30"
+indicatif = "0.17"
+which = "6"
+uuid = { version = "1", features = ["v4"] }
+chrono = { version = "0.4", features = ["serde"] }
+walkdir = "2"
+anyhow = "1"
+thiserror = "1"
+async-trait = "0.1"
+
+[dev-dependencies]
+tempfile = "3"
+assert_cmd = "2"
+predicates = "3"
