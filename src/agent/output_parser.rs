@@ -285,12 +285,37 @@ pub fn parse_test_strategy(text: &str) -> Result<TestStrategy, serde_json::Error
 
 pub fn extract_json_object(text: &str) -> Option<String> {
     let start = text.find('{')?;
-    let end = text.rfind('}')?;
-    if end > start {
-        Some(text[start..=end].to_string())
-    } else {
-        None
+    let bytes = &text.as_bytes()[start..];
+    let mut depth = 0i32;
+    let mut in_string = false;
+    let mut escape_next = false;
+
+    for (i, &b) in bytes.iter().enumerate() {
+        if escape_next {
+            escape_next = false;
+            continue;
+        }
+        if b == b'\\' && in_string {
+            escape_next = true;
+            continue;
+        }
+        if b == b'"' {
+            in_string = !in_string;
+            continue;
+        }
+        if in_string {
+            continue;
+        }
+        if b == b'{' {
+            depth += 1;
+        } else if b == b'}' {
+            depth -= 1;
+            if depth == 0 {
+                return Some(text[start..start + i + 1].to_string());
+            }
+        }
     }
+    None
 }
 
 pub fn parse_task_result(text: &str) -> Option<TaskResult> {

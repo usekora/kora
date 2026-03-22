@@ -39,6 +39,22 @@ impl WorktreeManager {
             .unwrap_or(&self.repo_root)
             .join(format!("{}{}", WORKTREE_PREFIX, task_id.to_lowercase()));
 
+        if worktree_dir.exists() {
+            let _ = Command::new("git")
+                .current_dir(&self.repo_root)
+                .args(["worktree", "remove", "--force"])
+                .arg(&worktree_dir)
+                .output()
+                .await;
+            let _ = tokio::fs::remove_dir_all(&worktree_dir).await;
+        }
+
+        let _ = Command::new("git")
+            .current_dir(&self.repo_root)
+            .args(["branch", "-D", branch_name])
+            .output()
+            .await;
+
         let output = Command::new("git")
             .current_dir(&self.repo_root)
             .arg("worktree")

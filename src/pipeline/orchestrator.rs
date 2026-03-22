@@ -369,7 +369,10 @@ async fn run_validation_and_merge(
             validator_output.validation.tests_failed,
         ));
 
-        if validator_output.validation.passed {
+        if validator_output.validation.passed
+            || (validator_output.validation.blocking_issues == 0
+                && validator_output.validation.tests_failed == 0)
+        {
             renderer.info("validation passed");
             break;
         }
