@@ -1,3 +1,4 @@
+pub mod presets;
 mod schema;
 
 pub use schema::*;
@@ -58,6 +59,11 @@ fn merge_configs(project: Config, home: Config) -> Config {
             home.default_provider
         } else {
             project.default_provider
+        },
+        pipeline_preset: if home.pipeline_preset != default.pipeline_preset {
+            home.pipeline_preset
+        } else {
+            project.pipeline_preset
         },
         providers: {
             let mut merged = project.providers;
