@@ -86,7 +86,7 @@ Requires at least one AI CLI tool installed: [Claude Code](https://docs.anthropi
 
 ```bash
 # npm
-npm install -g kora-ai
+npm install -g @usekora/kora
 
 # Homebrew
 brew install kora

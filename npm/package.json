@@ -1,5 +1,5 @@
 {
-  "name": "kora-ai",
+  "name": "@usekora/kora",
   "version": "0.1.0",
   "description": "Multi-agent development orchestration CLI",
   "license": "MIT",
