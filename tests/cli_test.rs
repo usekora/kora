@@ -58,7 +58,8 @@ fn test_kora_clean_no_runs() {
         .assert()
         .success()
         .stdout(
-            predicate::str::contains("no run data to clean")
-                .or(predicate::str::contains("no completed or failed runs to clean")),
+            predicate::str::contains("no run data to clean").or(predicate::str::contains(
+                "no completed or failed runs to clean",
+            )),
         );
 }

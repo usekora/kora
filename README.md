@@ -88,8 +88,8 @@ Requires at least one AI CLI tool installed: [Claude Code](https://docs.anthropi
 # npm
 npm install -g @usekora/kora
 
-# Homebrew
-brew install kora
+# Homebrew (coming soon)
+# brew install usekora/tap/kora
 
 # Cargo
 cargo install kora

@@ -185,18 +185,28 @@ impl WorktreeManager {
         Ok(worktrees)
     }
 
-    pub async fn cleanup_all(&self) -> Result<u32> {
-        let worktrees = self.list_worktrees().await?;
-        let mut removed = 0u32;
-
-        for wt in worktrees {
-            if wt.task_id.is_some() {
-                self.remove_worktree(&wt.path).await?;
-                removed += 1;
+    pub async fn cleanup_all(&self) -> Result<()> {
+        let parent = self.repo_root.parent().unwrap_or(&self.repo_root);
+        let mut entries = tokio::fs::read_dir(parent).await?;
+        while let Some(entry) = entries.next_entry().await? {
+            let name = entry.file_name().to_string_lossy().to_string();
+            if name.starts_with(WORKTREE_PREFIX) {
+                let path = entry.path();
+                let _ = Command::new("git")
+                    .current_dir(&self.repo_root)
+                    .args(["worktree", "remove", "--force"])
+                    .arg(&path)
+                    .output()
+                    .await;
+                let _ = tokio::fs::remove_dir_all(&path).await;
             }
         }
-
-        Ok(removed)
+        let _ = Command::new("git")
+            .current_dir(&self.repo_root)
+            .args(["worktree", "prune"])
+            .output()
+            .await;
+        Ok(())
     }
 
     pub async fn current_branch(&self) -> Result<String> {

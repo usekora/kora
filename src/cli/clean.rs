@@ -87,10 +87,10 @@ pub async fn run_clean(project_root: &Path) -> Result<()> {
     }
 
     let wt_manager = WorktreeManager::new(project_root);
-    let removed_worktrees = wt_manager.cleanup_all().await?;
+    wt_manager.cleanup_all().await?;
 
     renderer.stage_complete(
-        &format!("cleaned {} runs, {} worktrees", cleaned, removed_worktrees),
+        &format!("cleaned {} runs, worktrees pruned", cleaned),
         0,
     );
 

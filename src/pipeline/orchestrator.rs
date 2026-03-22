@@ -157,6 +157,12 @@ pub async fn run_pipeline(
     }
 
     run_state.save(&runs_dir)?;
+
+    let worktree_manager = WorktreeManager::new(project_root);
+    if let Err(e) = worktree_manager.cleanup_all().await {
+        renderer.info(&format!("warning: worktree cleanup failed: {}", e));
+    }
+
     Ok(())
 }
 

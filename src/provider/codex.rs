@@ -56,19 +56,47 @@ impl Provider for CodexProvider {
         for flag in ProviderKind::Codex.non_interactive_flags() {
             cmd.arg(flag);
         }
-        cmd.arg(prompt);
 
-        let output = match timeout {
-            Some(duration) => {
-                let child = cmd.stdout(Stdio::piped()).stderr(Stdio::piped()).spawn()?;
-                match tokio::time::timeout(duration, child.wait_with_output()).await {
-                    Ok(result) => result?,
-                    Err(_) => {
-                        bail!("codex agent timed out after {}s", duration.as_secs());
+        let large_prompt = prompt.len() > 50_000;
+        if !large_prompt {
+            cmd.arg(prompt);
+            cmd.stdin(Stdio::null());
+        } else {
+            cmd.stdin(Stdio::piped());
+        }
+
+        let output = if large_prompt {
+            cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
+            let mut child = cmd.spawn()?;
+            if let Some(mut stdin) = child.stdin.take() {
+                use tokio::io::AsyncWriteExt;
+                stdin.write_all(prompt.as_bytes()).await?;
+                drop(stdin);
+            }
+            match timeout {
+                Some(duration) => {
+                    match tokio::time::timeout(duration, child.wait_with_output()).await {
+                        Ok(result) => result?,
+                        Err(_) => {
+                            bail!("codex agent timed out after {}s", duration.as_secs());
+                        }
                     }
                 }
+                None => child.wait_with_output().await?,
             }
-            None => cmd.output().await?,
+        } else {
+            match timeout {
+                Some(duration) => {
+                    let child = cmd.stdout(Stdio::piped()).stderr(Stdio::piped()).spawn()?;
+                    match tokio::time::timeout(duration, child.wait_with_output()).await {
+                        Ok(result) => result?,
+                        Err(_) => {
+                            bail!("codex agent timed out after {}s", duration.as_secs());
+                        }
+                    }
+                }
+                None => cmd.output().await?,
+            }
         };
 
         Ok(AgentOutput {

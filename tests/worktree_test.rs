@@ -102,8 +102,7 @@ async fn test_cleanup_all_removes_kora_worktrees() {
         .await
         .unwrap();
 
-    let removed = manager.cleanup_all().await.unwrap();
-    assert_eq!(removed, 2);
+    manager.cleanup_all().await.unwrap();
 
     let worktrees = manager.list_worktrees().await.unwrap();
     let kora_worktrees: Vec<_> = worktrees.iter().filter(|w| w.task_id.is_some()).collect();

@@ -284,7 +284,30 @@ pub fn parse_test_strategy(text: &str) -> Result<TestStrategy, serde_json::Error
 }
 
 pub fn extract_json_object(text: &str) -> Option<String> {
-    let start = text.find('{')?;
+    let bytes = text.as_bytes();
+    let mut best: Option<String> = None;
+    let mut search_from = 0;
+
+    while search_from < bytes.len() {
+        let start = match text[search_from..].find('{') {
+            Some(pos) => search_from + pos,
+            None => break,
+        };
+
+        if let Some(candidate) = extract_balanced_json(text, start) {
+            let is_larger = best.as_ref().is_none_or(|b| candidate.len() > b.len());
+            if is_larger {
+                best = Some(candidate);
+            }
+        }
+
+        search_from = start + 1;
+    }
+
+    best
+}
+
+fn extract_balanced_json(text: &str, start: usize) -> Option<String> {
     let bytes = &text.as_bytes()[start..];
     let mut depth = 0i32;
     let mut in_string = false;
@@ -311,7 +334,11 @@ pub fn extract_json_object(text: &str) -> Option<String> {
         } else if b == b'}' {
             depth -= 1;
             if depth == 0 {
-                return Some(text[start..start + i + 1].to_string());
+                let candidate = &text[start..start + i + 1];
+                if serde_json::from_str::<serde_json::Value>(candidate).is_ok() {
+                    return Some(candidate.to_string());
+                }
+                return None;
             }
         }
     }
