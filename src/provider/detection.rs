@@ -8,7 +8,11 @@ pub struct DetectedProvider {
 pub fn detect_providers() -> Vec<DetectedProvider> {
     let mut found = Vec::new();
 
-    for kind in [ProviderKind::Claude, ProviderKind::Codex] {
+    for kind in [
+        ProviderKind::Claude,
+        ProviderKind::Codex,
+        ProviderKind::Gemini,
+    ] {
         if let Ok(path) = which::which(kind.cli_name()) {
             found.push(DetectedProvider {
                 kind,

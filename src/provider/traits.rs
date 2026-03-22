@@ -38,6 +38,7 @@ pub trait Provider: Send + Sync {
 pub enum ProviderKind {
     Claude,
     Codex,
+    Gemini,
 }
 
 impl ProviderKind {
@@ -45,6 +46,7 @@ impl ProviderKind {
         match self {
             ProviderKind::Claude => "claude",
             ProviderKind::Codex => "codex",
+            ProviderKind::Gemini => "gemini",
         }
     }
 
@@ -52,6 +54,37 @@ impl ProviderKind {
         match self {
             ProviderKind::Claude => vec!["--dangerously-skip-permissions"],
             ProviderKind::Codex => vec!["--approval-mode", "full-auto"],
+            ProviderKind::Gemini => vec!["--sandbox"],
+        }
+    }
+
+    pub fn available_models(&self) -> Vec<&'static str> {
+        match self {
+            ProviderKind::Claude => vec![
+                "opus-4-6-1m",
+                "opus-4-6",
+                "sonnet-4-6",
+                "haiku-4-5",
+            ],
+            ProviderKind::Codex => vec![
+                "gpt-5.4",
+                "gpt-5.3-codex-spark",
+                "gpt-5.3-codex",
+                "gpt-5.2-codex",
+            ],
+            ProviderKind::Gemini => vec![
+                "gemini-3.1-pro",
+                "gemini-3-flash",
+                "gemini-3.1-flash-lite",
+            ],
+        }
+    }
+
+    pub fn model_flag(&self) -> &'static str {
+        match self {
+            ProviderKind::Claude => "--model",
+            ProviderKind::Codex => "--model",
+            ProviderKind::Gemini => "--model",
         }
     }
 
@@ -59,6 +92,7 @@ impl ProviderKind {
         match self {
             ProviderKind::Claude => vec!["--print"],
             ProviderKind::Codex => vec!["--quiet"],
+            ProviderKind::Gemini => vec![],
         }
     }
 }
