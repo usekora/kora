@@ -1,6 +1,7 @@
 use crossterm::{
-    execute,
+    cursor, execute,
     style::{Attribute, Color, Print, ResetColor, SetAttribute, SetForegroundColor},
+    terminal::{Clear, ClearType},
 };
 use std::io::{self, Write};
 
@@ -20,13 +21,17 @@ impl Renderer {
 
         execute!(
             self.stdout,
-            Print("\n  "),
+            Print("\r\n  "),
             SetForegroundColor(Color::White),
             SetAttribute(Attribute::Bold),
             Print(name),
             SetAttribute(Attribute::Reset),
             Print(" "),
-            SetForegroundColor(Color::DarkGrey),
+            SetForegroundColor(Color::Rgb {
+                r: 130,
+                g: 130,
+                b: 130
+            }),
             Print(dots),
             Print(" "),
             ResetColor,
@@ -35,7 +40,7 @@ impl Renderer {
             SetForegroundColor(Color::Green),
             Print("●"),
             ResetColor,
-            Print("\n"),
+            Print("\r\n"),
         )
         .ok();
     }
@@ -43,15 +48,19 @@ impl Renderer {
     pub fn stage_complete(&mut self, name: &str, duration_secs: u64) {
         execute!(
             self.stdout,
-            Print("\n  "),
+            Print("\r\n  "),
             SetForegroundColor(Color::Green),
             Print("✓ "),
             ResetColor,
             Print(name),
-            SetForegroundColor(Color::DarkGrey),
+            SetForegroundColor(Color::Rgb {
+                r: 130,
+                g: 130,
+                b: 130
+            }),
             Print(format!("  {}s", duration_secs)),
             ResetColor,
-            Print("\n"),
+            Print("\r\n"),
         )
         .ok();
     }
@@ -60,7 +69,14 @@ impl Renderer {
         let (glyph, color) = match severity.to_uppercase().as_str() {
             "HIGH" => ("▲", Color::Red),
             "MEDIUM" | "MED" => ("■", Color::Yellow),
-            _ => ("·", Color::DarkGrey),
+            _ => (
+                "·",
+                Color::Rgb {
+                    r: 130,
+                    g: 130,
+                    b: 130,
+                },
+            ),
         };
 
         execute!(
@@ -71,7 +87,7 @@ impl Renderer {
             Print(" "),
             Print(severity.to_uppercase()),
             ResetColor,
-            Print(format!("   {}\n", text)),
+            Print(format!("   {}\r\n", text)),
         )
         .ok();
     }
@@ -80,7 +96,14 @@ impl Renderer {
         let (glyph, color) = if accepted {
             ("▲", Color::Red)
         } else {
-            ("·", Color::DarkGrey)
+            (
+                "·",
+                Color::Rgb {
+                    r: 130,
+                    g: 130,
+                    b: 130,
+                },
+            )
         };
 
         let status = if accepted { "accepted" } else { "dismissed" };
@@ -91,7 +114,7 @@ impl Renderer {
             SetForegroundColor(color),
             Print(glyph),
             ResetColor,
-            Print(format!(" {:<25} {} — {}\n", title, status, reason)),
+            Print(format!(" {:<25} {} — {}\r\n", title, status, reason)),
         )
         .ok();
     }
@@ -99,8 +122,12 @@ impl Renderer {
     pub fn separator(&mut self) {
         execute!(
             self.stdout,
-            SetForegroundColor(Color::DarkGrey),
-            Print("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"),
+            SetForegroundColor(Color::Rgb {
+                r: 130,
+                g: 130,
+                b: 130
+            }),
+            Print("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\r\n"),
             ResetColor,
         )
         .ok();
@@ -109,41 +136,134 @@ impl Renderer {
     pub fn info(&mut self, text: &str) {
         execute!(
             self.stdout,
-            SetForegroundColor(Color::DarkGrey),
-            Print(format!("  {}\n", text)),
+            SetForegroundColor(Color::Rgb {
+                r: 130,
+                g: 130,
+                b: 130
+            }),
+            Print(format!("  {}\r\n", text)),
             ResetColor,
         )
         .ok();
     }
 
     pub fn text(&mut self, text: &str) {
-        execute!(self.stdout, Print(format!("  {}\n", text)),).ok();
+        execute!(self.stdout, Print(format!("  {}\r\n", text)),).ok();
     }
 
-    pub fn welcome(&mut self, version: &str, provider: &str, checkpoints: usize) {
+    pub fn welcome(&mut self, version: &str, _provider: &str, project_path: &std::path::Path) {
+        let project_name = project_path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("unknown");
+
+        // Kora strings art + title
         execute!(
             self.stdout,
-            Print("\n"),
-            SetForegroundColor(Color::White),
+            Print("\r\n"),
+            SetForegroundColor(Color::Rgb {
+                r: 108,
+                g: 92,
+                b: 231
+            }),
+            Print("   ╲ │ ╱\r\n"),
+            Print("    ╲│╱   "),
             SetAttribute(Attribute::Bold),
-            Print(format!("  kora v{}", version)),
+            Print("KORA"),
             SetAttribute(Attribute::Reset),
-            SetForegroundColor(Color::DarkGrey),
-            Print(format!(
-                " · {} (default) · {} checkpoints configured",
-                provider, checkpoints
-            )),
+            SetForegroundColor(Color::Rgb {
+                r: 130,
+                g: 130,
+                b: 130
+            }),
+            Print(format!(" v{}\r\n", version)),
+            SetForegroundColor(Color::Rgb {
+                r: 108,
+                g: 92,
+                b: 231
+            }),
+            Print("     ●\r\n"),
             ResetColor,
-            Print("\n\n"),
-            Print("  ready. describe what you'd like to build, fix, or change.\n\n"),
         )
         .ok();
+
+        // Project info
+        execute!(
+            self.stdout,
+            Print("\r\n"),
+            SetForegroundColor(Color::Rgb {
+                r: 130,
+                g: 130,
+                b: 130
+            }),
+            Print("   📂 "),
+            ResetColor,
+            Print(format!("{}\r\n", project_name)),
+        )
+        .ok();
+
+        // Hints
+        execute!(
+            self.stdout,
+            Print("\r\n"),
+            SetForegroundColor(Color::Rgb {
+                r: 130,
+                g: 130,
+                b: 130
+            }),
+            Print("   Describe what you'd like to build, fix, or change.\r\n"),
+            Print("   /help for commands · /configure to customize\r\n"),
+            ResetColor,
+            Print("\r\n"),
+        )
+        .ok();
+    }
+
+    /// Clear the separator + raw input line and reprint user input as a styled message.
+    pub fn echo_input(&mut self, input: &str) {
+        // Move up to overwrite separator line + input line
+        execute!(
+            self.stdout,
+            cursor::MoveUp(2),
+            cursor::MoveToColumn(0),
+            Clear(ClearType::CurrentLine),
+            Clear(ClearType::FromCursorDown),
+            Print("\r\n"),
+            cursor::MoveToColumn(0),
+            SetForegroundColor(Color::White),
+            SetAttribute(Attribute::Bold),
+            Print(format!("  > {}", input)),
+            SetAttribute(Attribute::Reset),
+            ResetColor,
+            Print("\r\n"),
+        )
+        .ok();
+    }
+
+    /// Show that a command was executed.
+    pub fn command_result(&mut self, text: &str) {
+        execute!(
+            self.stdout,
+            SetForegroundColor(Color::Rgb {
+                r: 130,
+                g: 130,
+                b: 130
+            }),
+            Print(format!("  {}\r\n", text)),
+            ResetColor,
+        )
+        .ok();
+    }
+
+    /// Light separator between interactions.
+    pub fn interaction_break(&mut self) {
+        execute!(self.stdout, Print("\r\n")).ok();
     }
 
     pub fn checkpoint_prompt(&mut self, next_stage: &str) -> bool {
         execute!(
             self.stdout,
-            Print("\n"),
+            Print("\r\n"),
             SetForegroundColor(Color::Yellow),
             Print("  ■ checkpoint"),
             ResetColor,
@@ -175,14 +295,14 @@ impl Renderer {
 
         execute!(
             self.stdout,
-            Print("\n  "),
+            Print("\r\n  "),
             SetForegroundColor(color),
             Print(format!(
                 "review iteration {}: {} valid, {} dismissed",
                 iteration, valid, dismissed
             )),
             ResetColor,
-            Print(format!(" → {}\n", overall)),
+            Print(format!(" → {}\r\n", overall)),
         )
         .ok();
     }
@@ -190,13 +310,13 @@ impl Renderer {
     pub fn escalation(&mut self, message: &str) {
         execute!(
             self.stdout,
-            Print("\n  "),
+            Print("\r\n  "),
             SetForegroundColor(Color::Red),
             SetAttribute(Attribute::Bold),
             Print("▲ escalation"),
             SetAttribute(Attribute::Reset),
             ResetColor,
-            Print(format!(": {}\n", message)),
+            Print(format!(": {}\r\n", message)),
         )
         .ok();
     }
@@ -209,14 +329,14 @@ impl Renderer {
     pub fn implementation_complete(&mut self, total_tasks: usize, total_duration_secs: u64) {
         execute!(
             self.stdout,
-            Print("\n  "),
+            Print("\r\n  "),
             SetForegroundColor(Color::Green),
             Print(format!(
                 "all {} tasks complete in {}s",
                 total_tasks, total_duration_secs
             )),
             ResetColor,
-            Print("\n"),
+            Print("\r\n"),
         )
         .ok();
     }
@@ -224,11 +344,11 @@ impl Renderer {
     pub fn task_failure(&mut self, task_id: &str, error: &str) {
         execute!(
             self.stdout,
-            Print("\n  "),
+            Print("\r\n  "),
             SetForegroundColor(Color::Red),
             Print(format!("task {} failed: {}", task_id, error)),
             ResetColor,
-            Print("\n"),
+            Print("\r\n"),
         )
         .ok();
     }
@@ -249,7 +369,7 @@ impl Renderer {
 
         execute!(
             self.stdout,
-            Print("\n  "),
+            Print("\r\n  "),
             SetForegroundColor(color),
             Print(format!(
                 "{} validation {}",
@@ -258,7 +378,7 @@ impl Renderer {
             )),
             ResetColor,
             Print(format!(
-                "  blocking: {}  minor: {}  tests: {} passed, {} failed\n",
+                "  blocking: {}  minor: {}  tests: {} passed, {} failed\r\n",
                 blocking, minor, tests_passed, tests_failed
             )),
         )
@@ -272,7 +392,7 @@ impl Renderer {
             SetForegroundColor(Color::Cyan),
             Print("↳ "),
             ResetColor,
-            Print(format!("{}\n", message)),
+            Print(format!("{}\r\n", message)),
         )
         .ok();
     }
@@ -280,16 +400,20 @@ impl Renderer {
     pub fn run_complete(&mut self, run_id: &str) {
         execute!(
             self.stdout,
-            Print("\n"),
+            Print("\r\n"),
             SetForegroundColor(Color::Green),
             SetAttribute(Attribute::Bold),
             Print("  ✓ run complete"),
             SetAttribute(Attribute::Reset),
             ResetColor,
-            SetForegroundColor(Color::DarkGrey),
+            SetForegroundColor(Color::Rgb {
+                r: 130,
+                g: 130,
+                b: 130
+            }),
             Print(format!("  ({})", run_id)),
             ResetColor,
-            Print("\n"),
+            Print("\r\n"),
         )
         .ok();
     }
