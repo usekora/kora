@@ -1,2 +1,33 @@
+# Rust
 /target
+**/*.rs.bk
+*.pdb
+
+# Kora
 .kora/
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.vim/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# npm (for the npm distribution package)
+npm/node_modules/
+npm/bin/kora
+
+# Debug
+*.log
+core
