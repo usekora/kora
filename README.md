@@ -18,7 +18,23 @@
 
 ---
 
-Kora orchestrates a team of AI coding agents through a structured pipeline to implement features, fix bugs, and refactor code. You describe what you want — Kora researches, plans, reviews, implements, and validates.
+## Why Kora?
+
+AI coding agents are powerful individually — but they make mistakes. They skip edge cases, introduce security issues, forget about backward compatibility, and write code that drifts from the original intent.
+
+**What if an AI agent had the same safety net that human developers have?** A team. A code reviewer who catches bugs. A security auditor who spots vulnerabilities. A senior engineer who filters out noise. A QA lead who verifies the result matches the plan.
+
+Kora is that team. Instead of one agent doing everything and hoping for the best, Kora orchestrates **specialized agents** — each with a clear role, each checking the others' work. The researcher explores and plans. The reviewers challenge the plan. The judge filters real issues from nitpicks. The implementors write code in parallel. The code reviewers audit every diff. The validator confirms the result matches the intent.
+
+The result: code changes that are researched, planned, reviewed, implemented, audited, and validated — not just generated.
+
+### What does "Kora" mean?
+
+The [kora](https://en.wikipedia.org/wiki/Kora_(instrument)) is a West African string instrument with 21 strings, each playing its own voice. A single musician plays all strings simultaneously, weaving them into one cohesive piece. Like the instrument, Kora the tool orchestrates many independent agents — each with its own purpose — into a single, harmonious output.
+
+---
+
+## How it works
 
 ```
 $ kora
@@ -30,7 +46,7 @@ $ kora
 > add dark mode support that respects system preferences
 ```
 
-## How it works
+You describe what you want. Kora handles the rest:
 
 ```mermaid
 graph LR
@@ -70,26 +86,100 @@ graph LR
 
 | Agent | Role |
 |-------|------|
-| **Researcher** | Explores codebase, clarifies requirements, proposes plan |
-| **Plan Reviewer** | Finds bugs, missing edge cases, architectural issues in the plan |
-| **Plan Security Auditor** | Reviews plan for security implications |
-| **Judge** | Filters nitpicks from real issues, decides what to fix |
-| **Planner** | Breaks plan into parallel tasks with dependency graph |
-| **Test Architect** | Designs test strategy before code is written |
-| **Implementors** | Fleet of agents executing tasks in parallel git worktrees |
-| **Code Reviewer** | Reviews actual code diffs for bugs and quality |
-| **Code Security Auditor** | Reviews actual code diffs for security vulnerabilities |
-| **Validator** | Checks implementation matches plan, runs tests, detects drift |
+| **Researcher** | Explores your codebase, clarifies requirements with you, proposes a detailed plan |
+| **Plan Reviewer** | Challenges the plan — finds missing edge cases, backward compatibility issues, architectural concerns |
+| **Plan Security Auditor** | Reviews the plan for security implications before any code is written |
+| **Judge** | Filters nitpicks from real issues. Only high-value findings go back for revision |
+| **Planner** | Breaks the approved plan into parallel tasks with a dependency graph |
+| **Test Architect** | Designs the test strategy before implementation — what to test, what edge cases to cover |
+| **Implementors** | A fleet of agents executing tasks simultaneously in isolated git worktrees |
+| **Code Reviewer** | Reviews every code diff for bugs, logic errors, and quality issues |
+| **Code Security Auditor** | Reviews every code diff for security vulnerabilities |
+| **Validator** | Verifies the implementation matches the plan, runs tests, detects drift |
 
 ## Key features
 
-- **Provider-agnostic** — uses Claude, Codex, or Gemini CLI tools. No API keys needed.
-- **Parallel execution** — implementors work simultaneously in isolated git worktrees
-- **Quality loops** — reviewer + security auditor + judge iterate on both the plan and the code until issues are resolved
-- **Resumable** — all state saved to disk. `kora resume` picks up where you left off
-- **Configurable checkpoints** — approve at every stage, or `--yolo` for full autopilot
-- **Three verbosity modes** — press `Tab` to toggle between focused, detailed, and verbose
-- **Push & PR when you're ready** — optionally push branches and create pull requests after review. Always requires explicit approval, never automatic
+- **Provider-agnostic** — uses your existing AI CLI tools (Claude Code, Codex, or Gemini). No API keys, no vendor lock-in
+- **Parallel execution** — implementors work simultaneously in isolated git worktrees. A 4-task feature gets 4 agents working at once
+- **Two quality loops** — the plan is reviewed before code is written, then every code diff is reviewed after. Both loops use a judge to filter noise from real issues
+- **Resumable** — every stage transition is saved to disk. Ctrl+C and `kora resume` later. Nothing is lost
+- **You stay in control** — configurable checkpoints let you approve at any stage. Remote operations (push, PRs) always require explicit approval
+- **Three verbosity modes** — press `Tab` to toggle between focused (just verdicts), detailed (findings + summaries), and verbose (full agent output)
+
+## What a run looks like
+
+```
+  researcher ·········································· analyzing ●
+
+  Found 47 files relevant to your request.
+  Proposing approach with 3 key changes...
+
+  ? Approve this direction? (approve / adjust)
+
+> approve
+
+                                                     iteration 1 of 3
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  reviewer ·········································· analyzing plan ●
+
+    ▲ HIGH   No database migration strategy
+    ■ MED    Missing error boundary for lazy-loaded assets
+    · LOW    Could use const enum — dismissed
+
+  judge ·············································· evaluating ●
+
+    ▲ DB migration          accepted
+    ■ Error boundary        accepted
+    · Const enum            dismissed
+
+  researcher ········································ revising ●
+
+    ✓ Added migration strategy
+    ✓ Added ErrorBoundary wrapper
+
+  ✓ plan approved                              2 iterations · 47s
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  implementing ······································ 2 of 4 ●
+
+    T1  claude  ████████████  ✓ 34s     feat/theme-context    7 files
+    T2  codex   ████████████  ✓ 12s     feat/css-variables    3 files
+    T3  claude  ██████████░░  running   feat/migration
+    T4  claude  ███░░░░░░░░░  running   feat/integration
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  code review ······································ T1 ●
+
+      ▲ HIGH   SQL injection in query builder
+      · LOW    Variable naming — dismissed
+
+    implementor ···································· fixing T1 ●
+      ✓ Fixed SQL injection
+
+  code review ······································ T1 iteration 2 ●
+      ✓ all findings dismissed
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ implementation complete                     4 tasks · 1m 23s
+
+  ? What would you like to do with the changes?
+
+    ❯ Merge all into current branch
+      Create a single combined branch
+      Leave branches as-is
+
+  ✓ merged 4 branches
+
+  ? Push to remote?
+
+    ❯ Done — keep changes local
+      Push branch to remote
+      Push and create a Pull Request
+```
 
 ## Install
 
@@ -148,8 +238,6 @@ Drop into a conversational session. Describe what you want, watch agents work, a
 kora run "fix the N+1 query in the deployments endpoint"
 ```
 
-**Flags:**
-
 | Flag | Effect |
 |------|--------|
 | `--yolo` | No checkpoints, full autopilot |
@@ -166,102 +254,13 @@ kora history      # View past runs
 kora clean        # Clean up old run data
 ```
 
-## What a run looks like
-
-```
-  researcher ·········································· analyzing ●
-
-  Found 47 files relevant to your request.
-  Proposing approach with 3 key changes...
-
-  ? Approve this direction? (approve / adjust)
-
-> approve
-
-                                                     iteration 1 of 3
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  reviewer ·········································· analyzing plan ●
-
-    ▲ HIGH   No database migration strategy
-    ■ MED    Missing error boundary for lazy-loaded assets
-    · LOW    Could use const enum — dismissed
-
-  judge ·············································· evaluating ●
-
-    ▲ DB migration          accepted
-    ■ Error boundary        accepted
-    · Const enum            dismissed
-
-  researcher ········································ revising ●
-
-    ✓ Added migration strategy
-    ✓ Added ErrorBoundary wrapper
-
-  ✓ plan approved                              2 iterations · 47s
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  implementing ······································ 2 of 4 ●
-
-    T1  claude  ████████████  ✓ 34s     feat/theme-context    7 files
-    T2  codex   ████████████  ✓ 12s     feat/css-variables    3 files
-    T3  claude  ██████████░░  running   feat/migration
-    T4  claude  ███░░░░░░░░░  running   feat/integration
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  code review ······································ T1 ●
-
-    code reviewer ·································· analyzing diff ●
-    code security auditor ·························· analyzing diff ●
-
-      ▲ HIGH   SQL injection in query builder
-      · LOW    Could use more descriptive variable name — dismissed
-
-    code judge ····································· evaluating ●
-
-      ▲ SQL injection             accepted
-      · Variable name             dismissed
-
-    implementor ···································· fixing T1 ●
-
-      ✓ Fixed SQL injection in query builder
-
-  code review ······································ T1 iteration 2 ●
-
-    code reviewer ·································· analyzing diff ●
-    code security auditor ·························· analyzing diff ●
-    code judge ····································· evaluating ●
-
-      ✓ all findings dismissed
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  ✓ implementation complete                     4 tasks · 1m 23s
-
-  ? What would you like to do with the changes?
-
-    ❯ Merge all into current branch
-      Create a single combined branch
-      Leave branches as-is
-
-  ✓ merged 4 branches
-
-  ? Push to remote?
-
-    ❯ Done — keep changes local
-      Push branch to remote
-      Push and create a Pull Request
-```
-
 ## Configuration
 
 ```bash
 kora configure
 ```
 
-Interactive wizard that creates `.kora/config.yml`:
+Interactive wizard that creates `~/.kora/config.yml` (personal) or `.kora/config.yml` (shared with team). When both exist, personal config takes precedence — like Claude Code's settings model.
 
 ```yaml
 version: 1
@@ -271,9 +270,6 @@ agents:
   researcher:
     provider: default
     custom_instructions: .kora/prompts/researcher-extra.md  # optional
-  reviewer:
-    provider: default
-  # ...
 
 checkpoints:
   - after_researcher
@@ -298,7 +294,7 @@ agents:
     custom_instructions: .kora/prompts/researcher-extra.md
 ```
 
-The file contents are appended to the built-in prompt. The base prompts are baked into the binary and cannot be replaced.
+The file contents are appended to the built-in prompt. Base prompts are baked into the binary and cannot be replaced — only extended.
 
 ## Architecture
 
@@ -318,9 +314,10 @@ graph TB
     end
 
     subgraph "Pipeline"
-        RL[Review Loop]
+        RL[Plan Review Loop]
         PL[Planner]
         IF[Implementor Fleet]
+        CR[Code Review Loop]
         VL[Validation Loop]
     end
 
@@ -336,10 +333,12 @@ graph TB
     Orch --> RL
     Orch --> PL
     Orch --> IF
+    IF --> CR
     Orch --> VL
     RL --> PT
     PL --> PT
     IF --> PT
+    CR --> PT
     VL --> PT
     PT --> CP
     PT --> CX
@@ -352,24 +351,15 @@ graph TB
     style PT fill:#6c5ce7,stroke:#a29bfe,color:#fff
     style RL fill:#00b894,stroke:#55efc4,color:#fff
     style IF fill:#00b894,stroke:#55efc4,color:#fff
+    style CR fill:#00b894,stroke:#55efc4,color:#fff
 ```
 
-All state is persisted to `.kora/runs/` as plain JSON/YAML files. If the process dies, `kora resume` picks up exactly where it left off.
+**Key design decisions:**
 
-## How agents communicate
-
-Agents are stateless. They don't talk to each other — the orchestrator passes files between them:
-
-```
-Researcher writes plan → Orchestrator injects into Reviewer prompt
-Reviewer writes findings → Orchestrator injects into Judge prompt
-Judge approves → Orchestrator injects plan into Planner prompt
-Planner writes tasks → Orchestrator injects into each Implementor prompt
-Implementor writes code → Code Reviewer + Code Security Auditor review the diff
-Code findings → Judge evaluates → valid issues sent back to Implementor for fixes
-```
-
-A Claude researcher can hand off to a Codex reviewer seamlessly because the handoff is a file, not a conversation.
+- **Agents are stateless** — they communicate through files, not memory. The orchestrator mediates everything. A Claude researcher can hand off to a Codex reviewer seamlessly because the handoff is a file, not a conversation thread.
+- **CLI-only provider integration** — Kora spawns `claude`, `codex`, or `gemini` as subprocesses. No API keys, no SDKs, no token management. Your CLI tools handle authentication.
+- **Everything is resumable** — state is persisted to `~/.kora/runs/` after every stage transition. Process dies? `kora resume` picks up exactly where it left off.
+- **Remote operations require consent** — Kora never pushes code or creates PRs without explicit approval. Even in `--yolo` mode, remote operations are interactive.
 
 ## Contributing
 
