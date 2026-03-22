@@ -10,10 +10,15 @@
 </p>
 
 <p align="center">
+  Works with <strong>Claude Code</strong> · <strong>OpenAI Codex</strong> · <strong>Gemini CLI</strong><br>
+  <em>Use one, two, or all three — Kora routes each agent to the best available provider.</em>
+</p>
+
+<p align="center">
   <a href="#install"><img src="https://img.shields.io/badge/install-4%20methods-blue" alt="Install" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License" /></a>
   <img src="https://img.shields.io/badge/language-rust-orange" alt="Rust" />
-  <img src="https://img.shields.io/badge/providers-claude%20%7C%20codex-purple" alt="Providers" />
+  <img src="https://img.shields.io/badge/providers-claude%20%7C%20codex%20%7C%20gemini-purple" alt="Providers" />
 </p>
 
 ---
@@ -39,11 +44,19 @@ The [kora](https://en.wikipedia.org/wiki/Kora_(instrument)) is a West African st
 ```
 $ kora
 
-  kora v0.1.0 · claude (default) · 2 checkpoints configured
+   ╲ │ ╱
+    ╲│╱   KORA v0.1.0
+     ●
 
-  ready. describe what you'd like to build, fix, or change.
+   📂 my-project
 
-> add dark mode support that respects system preferences
+   Describe what you'd like to build, fix, or change.
+   /help for commands · /configure to customize
+
+  ╭──────────────────────────────────────────────────────────────────────
+  │ ❯ add dark mode support that respects system preferences
+  ╰──────────────────────────────────────────────────────────────────────
+  Preset: Balanced · Branch: main · 2 checkpoints
 ```
 
 You describe what you want. Kora handles the rest:
@@ -99,12 +112,15 @@ graph LR
 
 ## Key features
 
+- **Adaptive pipeline** — not every task needs the full team. Kora auto-classifies requests and scales the pipeline accordingly. A typo fix skips straight to implementation; a complex feature gets the full pipeline with security auditing
+- **Smart provider routing** — pipeline presets automatically route each agent to the best available provider. Claude for deep reasoning, Codex for fast validation, Gemini for large-context research — based on what you have installed
 - **Provider-agnostic** — uses your existing AI CLI tools (Claude Code, Codex, or Gemini). No API keys, no vendor lock-in
 - **Parallel execution** — implementors work simultaneously in isolated git worktrees. A 4-task feature gets 4 agents working at once
 - **Two quality loops** — the plan is reviewed before code is written, then every code diff is reviewed after. Both loops use a judge to filter noise from real issues
 - **Resumable** — every stage transition is saved to disk. Ctrl+C and `kora resume` later. Nothing is lost
 - **You stay in control** — configurable checkpoints let you approve at any stage. Remote operations (push, PRs) always require explicit approval
-- **Three verbosity modes** — press `Tab` to toggle between focused (just verdicts), detailed (findings + summaries), and verbose (full agent output)
+- **Slash commands with autocomplete** — type `/` for instant command suggestions. `/configure` for settings, `/clear` to reset, `/help` for reference
+- **Agents you can disable** — skip security auditors, test architect, or validators when you don't need them. Speed preset does this automatically
 
 ## What a run looks like
 
@@ -183,7 +199,7 @@ graph LR
 
 ## Install
 
-Requires at least one AI CLI tool installed: [Claude Code](https://docs.anthropic.com/en/docs/claude-code), [Codex](https://github.com/openai/codex), or Gemini.
+Requires at least one AI CLI tool installed: [Claude Code](https://docs.anthropic.com/en/docs/claude-code), [OpenAI Codex](https://github.com/openai/codex), or [Gemini CLI](https://github.com/google-gemini/gemini-cli). Install more for smarter provider routing.
 
 ```bash
 # npm
@@ -202,15 +218,17 @@ curl -fsSL https://raw.githubusercontent.com/usekora/kora/main/install.sh | sh
 ## Quick start
 
 ```bash
-# 1. Configure (first time only)
-kora configure
-
-# 2. Start an interactive session
+# Start an interactive session — works immediately, no setup needed
 kora
 
-# 3. Or run a one-shot command
+# Or run a one-shot command
 kora run "add rate limiting to the /api/users endpoint"
+
+# Customize presets, agents, checkpoints (optional)
+kora configure
 ```
+
+Kora auto-detects your installed AI CLI tools and applies a smart default preset. No configuration required.
 
 ## Usage
 
@@ -222,15 +240,15 @@ kora
 
 Drop into a conversational session. Describe what you want, watch agents work, approve at checkpoints. The session stays alive — run multiple tasks without restarting.
 
-**Inline commands during a session:**
+**Slash commands** (type `/` for autocomplete):
 
 | Command | Action |
 |---------|--------|
-| `/status` | Current run progress |
-| `/verbose` | Toggle verbosity mode |
-| `/config` | Show config |
-| `/help` | List commands |
-| `/quit` | Exit session |
+| `/configure` | Edit pipeline preset, agent models, checkpoints |
+| `/status` | Current run info |
+| `/clear` | Reset session |
+| `/help` | Command reference |
+| `/exit` | Exit kora |
 
 ### One-shot mode
 
@@ -240,6 +258,10 @@ kora run "fix the N+1 query in the deployments endpoint"
 
 | Flag | Effect |
 |------|--------|
+| `--profile trivial` | Skip review, planning, validation — fast path for tiny changes |
+| `--profile simple` | Skip review loop and test architect — for small bug fixes |
+| `--profile standard` | Full pipeline (default if not auto-detected) |
+| `--profile security-critical` | Full pipeline with all security agents force-enabled |
 | `--yolo` | No checkpoints, full autopilot |
 | `--careful` | Checkpoint at every stage |
 | `--dry-run` | Research + review only, no implementation |
@@ -254,39 +276,59 @@ kora history      # View past runs
 kora clean        # Clean up old run data
 ```
 
-## Configuration
+## Pipeline profiles
+
+The Researcher auto-classifies each request and the pipeline adapts — no configuration needed. You can also override with `--profile`:
+
+| Profile | Stages | Use case |
+|---------|--------|----------|
+| **trivial** | Research → Implement → Merge | Typo, rename, config change |
+| **simple** | Research → Plan → Implement → Code Review → Validate | Bug fix, small feature |
+| **standard** | Full pipeline (all agents) | Multi-file features, refactors |
+| **security-critical** | Full pipeline, all security agents forced on | Auth, payments, PII |
 
 ```bash
-kora configure
+# Auto-detected — researcher decides
+kora run "fix typo in README"           # → trivial (fast path, seconds)
+kora run "add rate limiting"            # → standard (full pipeline)
+
+# Manual override
+kora run "update auth flow" --profile security-critical
 ```
 
-Interactive wizard that creates `~/.kora/config.yml` (personal) or `.kora/config.yml` (shared with team). When both exist, personal config takes precedence — like Claude Code's settings model.
+When in doubt, the Researcher classifies one level higher. You always get at least as much scrutiny as the task warrants.
 
-```yaml
-version: 1
-default_provider: claude
+## Configuration
 
-agents:
-  researcher:
-    provider: default
-    custom_instructions: .kora/prompts/researcher-extra.md  # optional
+Run `/configure` in an interactive session, or `kora configure` from the command line.
 
-checkpoints:
-  - after_researcher
-  - after_planner
+### Pipeline presets
 
-review_loop:
-  max_iterations: 3
+Presets route each agent to the best available provider — based on what you have installed:
 
-implementation:
-  branch_strategy: separate
-  parallel_limit: 4
+| Preset | Strategy |
+|--------|----------|
+| **Quality** | Strongest model for every role. Claude Opus for planning, Gemini Pro for research |
+| **Balanced** | Claude Sonnet for core, lighter models for validation. Best value (default) |
+| **Speed** | Fastest provider per role, skips security and test agents |
+| **Custom** | Full per-agent provider and model control |
 
-output:
-  default_verbosity: focused
-```
+When multiple providers are installed, presets mix them intelligently — Claude for implementation, Codex for validation, Gemini for research. With a single provider, presets still optimize by varying the workload.
 
-**Custom instructions** — extend any agent's behavior without replacing the base prompt:
+### Settings
+
+| Setting | What it does |
+|---------|-------------|
+| Pipeline preset | Quality / Balanced / Speed / Custom |
+| Agent config | Per-agent provider:model override (Custom mode) |
+| Disabled agents | Toggle optional agents (security auditors, test architect, validator) |
+| Checkpoints | Approval gates between pipeline stages |
+| Branch strategy | Separate branch per task / single feature branch / planner decides |
+| Max parallel tasks | How many implementors run simultaneously |
+
+### Custom instructions
+
+Extend any agent's behavior without replacing the base prompt:
 
 ```yaml
 agents:
@@ -311,6 +353,7 @@ graph TB
         PT[Provider Trait]
         CP[Claude Adapter]
         CX[Codex Adapter]
+        GM[Gemini Adapter]
     end
 
     subgraph "Pipeline"
@@ -342,6 +385,7 @@ graph TB
     VL --> PT
     PT --> CP
     PT --> CX
+    PT --> GM
     Orch --> R
     IF --> D
     Orch --> S
