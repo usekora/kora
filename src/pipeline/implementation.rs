@@ -486,6 +486,8 @@ async fn run_code_review_loop(
         return;
     };
 
+    let mut previous_review_text = String::new();
+
     for iteration in 1..=max_iterations {
         let diff = get_worktree_diff(wt_path).await;
         if diff.is_empty() {
@@ -563,6 +565,23 @@ async fn run_code_review_loop(
 
         let _ = std::fs::write(review_dir.join("code-review.md"), &review_text);
         let _ = std::fs::write(review_dir.join("code-security.md"), &security_text);
+
+        // Stall detection: break if code review is cycling
+        let combined_review = format!("{}\n{}", review_text, security_text);
+        if iteration > 1
+            && crate::pipeline::stall::is_cycling(
+                &previous_review_text,
+                &combined_review,
+                crate::pipeline::stall::DEFAULT_CYCLE_THRESHOLD,
+            )
+        {
+            let _ = std::fs::write(
+                review_dir.join("WARNING.md"),
+                "Code review cycling detected — same findings repeating. Breaking loop.",
+            );
+            return;
+        }
+        previous_review_text = combined_review;
 
         let Some(judge_provider) = judge else {
             let review_summary = output_parser::parse_code_review(&review_text);

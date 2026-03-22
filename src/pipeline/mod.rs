@@ -1,9 +1,11 @@
 pub mod context;
 pub mod implementation;
 pub mod merge;
+pub mod metrics;
 pub mod orchestrator;
 pub mod planner;
 pub mod researcher;
 pub mod review_loop;
+pub mod stall;
 pub mod test_architect;
 pub mod validation;

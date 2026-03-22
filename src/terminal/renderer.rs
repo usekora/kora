@@ -397,6 +397,35 @@ impl Renderer {
         .ok();
     }
 
+    pub fn run_metrics_summary(&mut self, lines: &[String]) {
+        execute!(
+            self.stdout,
+            Print("\r\n"),
+            SetForegroundColor(Color::Rgb {
+                r: 130,
+                g: 130,
+                b: 130
+            }),
+        )
+        .ok();
+        for line in lines {
+            execute!(self.stdout, Print(format!("  {}\r\n", line)),).ok();
+        }
+        execute!(self.stdout, ResetColor,).ok();
+    }
+
+    pub fn cycling_detected(&mut self, context: &str) {
+        execute!(
+            self.stdout,
+            Print("\r\n  "),
+            SetForegroundColor(Color::Yellow),
+            Print("■ cycling detected"),
+            ResetColor,
+            Print(format!(": {} — breaking loop early\r\n", context)),
+        )
+        .ok();
+    }
+
     pub fn run_complete(&mut self, run_id: &str) {
         execute!(
             self.stdout,
@@ -423,9 +452,17 @@ impl Renderer {
     pub fn no_providers_screen(&mut self) {
         use crossterm::event::{self, Event, KeyCode, KeyEvent};
 
-        let dim = Color::Rgb { r: 130, g: 130, b: 130 };
+        let dim = Color::Rgb {
+            r: 130,
+            g: 130,
+            b: 130,
+        };
         let yellow = Color::Yellow;
-        let kora_purple = Color::Rgb { r: 108, g: 92, b: 231 };
+        let kora_purple = Color::Rgb {
+            r: 108,
+            g: 92,
+            b: 231,
+        };
 
         execute!(
             self.stdout,

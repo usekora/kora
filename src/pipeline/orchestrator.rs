@@ -6,7 +6,8 @@ use crate::agent::output_parser;
 use crate::config::Config;
 use crate::git::worktree::WorktreeManager;
 use crate::pipeline::{
-    context, implementation, merge, planner, researcher, review_loop, test_architect, validation,
+    context, implementation, merge, metrics::RunMetrics, planner, researcher, review_loop, stall,
+    test_architect, validation,
 };
 use crate::provider::{self, Provider};
 use crate::state::{
@@ -70,6 +71,8 @@ pub async fn run_pipeline(
     let run_dir = RunDirectory::new(&runs_dir, &run_state.id);
     run_dir.create_structure()?;
     run_state.save(&runs_dir)?;
+
+    let mut metrics = RunMetrics::new();
 
     renderer.stage_header("researcher", "starting");
 
@@ -175,8 +178,17 @@ pub async fn run_pipeline(
         &checkpoints,
         &get_provider,
         options.yolo,
+        &mut metrics,
     )
     .await?;
+
+    // Finalize and display metrics
+    metrics.complete();
+    let run_dir_path = runs_dir.join(&run_state.id);
+    if let Err(e) = metrics.save(&run_dir_path) {
+        renderer.info(&format!("warning: failed to save metrics: {}", e));
+    }
+    renderer.run_metrics_summary(&metrics.summary_lines());
 
     run_state.save(&runs_dir)?;
 
@@ -293,6 +305,7 @@ async fn run_planning_and_implementation(
     checkpoints: &[Checkpoint],
     get_provider: &dyn Fn(&str) -> Option<Box<dyn Provider>>,
     auto_merge: bool,
+    metrics: &mut RunMetrics,
 ) -> Result<()> {
     let no_flags: Vec<String> = vec![];
     let profile = run_state.pipeline_profile.unwrap_or_default();
@@ -322,6 +335,17 @@ async fn run_planning_and_implementation(
             config.agents.planner.timeout_seconds,
         )
         .await?;
+
+        // Record planner metrics from saved output
+        let planner_output_path = run_dir.plan_dir().join("breakdown.json");
+        let planner_output = std::fs::read_to_string(&planner_output_path).unwrap_or_default();
+        metrics.record(
+            "planner",
+            &config.agents.planner.provider,
+            std::time::Duration::from_secs(0),
+            &planner_prompt.prompt,
+            &planner_output,
+        );
 
         renderer.stage_complete("planner", 0);
         renderer.info(&format!(
@@ -482,6 +506,7 @@ async fn run_validation_and_merge(
         renderer.info("validator disabled, skipping validation");
     } else {
         let max_iterations = config.validation_loop.max_iterations;
+        let mut previous_validator_output = String::new();
 
         for iteration in 1..=max_iterations {
             run_state.advance(Stage::Validating);
@@ -516,6 +541,21 @@ async fn run_validation_and_merge(
                 validator_output.validation.tests_passed,
                 validator_output.validation.tests_failed,
             ));
+
+            // Stall detection: break if validator output is cycling
+            if iteration > 1
+                && stall::is_cycling(
+                    &previous_validator_output,
+                    &validator_output.raw_text,
+                    stall::DEFAULT_CYCLE_THRESHOLD,
+                )
+            {
+                renderer.cycling_detected("validation loop");
+                run_state.set_error("validation loop cycling — same issues repeating");
+                run_state.save(runs_dir)?;
+                return Ok(());
+            }
+            previous_validator_output = validator_output.raw_text.clone();
 
             if validator_output.validation.passed
                 || (validator_output.validation.blocking_issues == 0
@@ -617,6 +657,8 @@ async fn resume_pipeline(
     let stage = run_state.status.clone();
     renderer.info(&format!("resuming from stage: {}", stage.label()));
 
+    let mut metrics = RunMetrics::new();
+
     match stage {
         Stage::Researching => {
             renderer.stage_header("researcher", "resuming");
@@ -661,6 +703,7 @@ async fn resume_pipeline(
                         checkpoints,
                         get_provider,
                         false,
+                        &mut metrics,
                     )
                     .await?;
                 }
@@ -690,6 +733,7 @@ async fn resume_pipeline(
                         checkpoints,
                         get_provider,
                         false,
+                        &mut metrics,
                     )
                     .await?;
                 }
@@ -706,6 +750,7 @@ async fn resume_pipeline(
                 checkpoints,
                 get_provider,
                 false,
+                &mut metrics,
             )
             .await?;
         }
@@ -722,6 +767,7 @@ async fn resume_pipeline(
                 checkpoints,
                 get_provider,
                 false,
+                &mut metrics,
             )
             .await?;
         }

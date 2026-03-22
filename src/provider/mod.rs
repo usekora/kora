@@ -2,6 +2,7 @@ mod claude;
 mod codex;
 mod detection;
 mod gemini;
+pub mod retry;
 mod traits;
 
 pub use claude::ClaudeProvider;
