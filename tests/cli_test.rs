@@ -57,5 +57,5 @@ fn test_kora_clean_no_runs() {
         .current_dir(tmp.path())
         .assert()
         .success()
-        .stdout(predicate::str::contains("no run data to clean"));
+        .stdout(predicate::str::contains("no completed or failed runs to clean"));
 }

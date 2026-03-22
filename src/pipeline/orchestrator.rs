@@ -143,6 +143,7 @@ pub async fn run_pipeline(
                 renderer,
                 &checkpoints,
                 &get_provider,
+                options.yolo,
             )
             .await?;
         }
@@ -169,6 +170,7 @@ async fn run_planning_and_implementation(
     renderer: &mut Renderer,
     checkpoints: &[Checkpoint],
     get_provider: &dyn Fn(&str) -> Option<Box<dyn Provider>>,
+    auto_merge: bool,
 ) -> Result<()> {
     let no_flags: Vec<String> = vec![];
 
@@ -310,6 +312,7 @@ async fn run_planning_and_implementation(
         get_provider,
         fleet.task_states(),
         fleet.merge_order(),
+        auto_merge,
     )
     .await?;
 
@@ -327,6 +330,7 @@ async fn run_validation_and_merge(
     get_provider: &dyn Fn(&str) -> Option<Box<dyn Provider>>,
     task_states: &std::collections::HashMap<String, implementation::TaskState>,
     merge_order: &[String],
+    auto_merge: bool,
 ) -> Result<()> {
     let no_flags: Vec<String> = vec![];
     let max_iterations = config.validation_loop.max_iterations;
@@ -429,6 +433,7 @@ async fn run_validation_and_merge(
         config,
         renderer,
         get_provider,
+        auto_merge,
     )
     .await?;
 
@@ -503,6 +508,7 @@ async fn resume_pipeline(
                         renderer,
                         checkpoints,
                         get_provider,
+                        false,
                     )
                     .await?;
                 }
@@ -531,6 +537,7 @@ async fn resume_pipeline(
                         renderer,
                         checkpoints,
                         get_provider,
+                        false,
                     )
                     .await?;
                 }
@@ -546,6 +553,7 @@ async fn resume_pipeline(
                 renderer,
                 checkpoints,
                 get_provider,
+                false,
             )
             .await?;
         }
@@ -561,6 +569,7 @@ async fn resume_pipeline(
                 renderer,
                 checkpoints,
                 get_provider,
+                false,
             )
             .await?;
         }

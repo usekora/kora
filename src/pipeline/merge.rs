@@ -23,6 +23,7 @@ pub struct MergeOutcome {
     pub failed_branches: Vec<String>,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn run_merge_flow(
     worktree_manager: &WorktreeManager,
     task_states: &HashMap<String, TaskState>,
@@ -31,6 +32,7 @@ pub async fn run_merge_flow(
     config: &Config,
     renderer: &mut Renderer,
     get_provider: &dyn Fn(&str) -> Option<Box<dyn Provider>>,
+    auto_merge: bool,
 ) -> Result<MergeOutcome> {
     let branch_list: Vec<String> = merge_order
         .iter()
@@ -50,13 +52,17 @@ pub async fn run_merge_flow(
     }
     renderer.text("");
 
-    let options = [
-        "Merge all into current branch",
-        "Create a single combined branch",
-        "Leave branches as-is",
-    ];
-
-    let choice = selector::select("What would you like to do with the changes?", &options)?;
+    let choice = if auto_merge {
+        renderer.info("auto-merging all branches into current branch");
+        0
+    } else {
+        let options = [
+            "Merge all into current branch",
+            "Create a single combined branch",
+            "Leave branches as-is",
+        ];
+        selector::select("What would you like to do with the changes?", &options)?
+    };
 
     let strategy = match choice {
         0 => MergeStrategy::MergeIntoCurrent,
