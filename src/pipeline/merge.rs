@@ -70,14 +70,14 @@ pub async fn run_merge_flow(
         _ => MergeStrategy::LeaveAsIs,
     };
 
-    match strategy {
+    let outcome = match strategy {
         MergeStrategy::LeaveAsIs => {
             renderer.info("branches left as-is");
-            Ok(MergeOutcome {
+            MergeOutcome {
                 strategy: MergeStrategy::LeaveAsIs,
                 merged_branches: vec![],
                 failed_branches: vec![],
-            })
+            }
         }
         MergeStrategy::MergeIntoCurrent => {
             let repo_root = worktree_manager.repo_root();
@@ -92,11 +92,11 @@ pub async fn run_merge_flow(
             )
             .await?;
 
-            Ok(MergeOutcome {
+            MergeOutcome {
                 strategy: MergeStrategy::MergeIntoCurrent,
                 merged_branches: merged,
                 failed_branches: failed,
-            })
+            }
         }
         MergeStrategy::CombinedBranch => {
             let combined_branch = format!("kora/combined-{}", run_id);
@@ -129,13 +129,172 @@ pub async fn run_merge_flow(
 
             renderer.info(&format!("combined branch: {}", combined_branch));
 
-            Ok(MergeOutcome {
+            MergeOutcome {
                 strategy: MergeStrategy::CombinedBranch,
                 merged_branches: merged,
                 failed_branches: failed,
-            })
+            }
+        }
+    };
+
+    if !outcome.merged_branches.is_empty() {
+        offer_remote_operations(worktree_manager, &outcome, run_id, renderer).await?;
+    }
+
+    Ok(outcome)
+}
+
+async fn offer_remote_operations(
+    worktree_manager: &WorktreeManager,
+    _outcome: &MergeOutcome,
+    run_id: &str,
+    renderer: &mut Renderer,
+) -> Result<()> {
+    renderer.text("");
+
+    let has_gh = which::which("gh").is_ok();
+    let has_remote = check_remote_exists(worktree_manager.repo_root()).await;
+
+    if !has_remote {
+        return Ok(());
+    }
+
+    let mut options: Vec<&str> = vec!["Done — keep changes local"];
+
+    if has_remote {
+        options.push("Push branch to remote");
+    }
+    if has_gh && has_remote {
+        options.push("Push and create a Pull Request");
+    }
+
+    let choice = selector::select("Push to remote?", &options)?;
+
+    match choice {
+        0 => {
+            renderer.info("changes kept local");
+        }
+        1 => {
+            let branch = get_current_branch(worktree_manager.repo_root()).await?;
+            push_branch(worktree_manager.repo_root(), &branch, renderer).await?;
+        }
+        2 if has_gh => {
+            let branch = get_current_branch(worktree_manager.repo_root()).await?;
+            push_branch(worktree_manager.repo_root(), &branch, renderer).await?;
+            create_pull_request(worktree_manager.repo_root(), &branch, run_id, renderer).await?;
+        }
+        _ => {}
+    }
+
+    Ok(())
+}
+
+async fn check_remote_exists(repo_root: &Path) -> bool {
+    let output = tokio::process::Command::new("git")
+        .current_dir(repo_root)
+        .args(["remote"])
+        .output()
+        .await;
+
+    match output {
+        Ok(o) => !String::from_utf8_lossy(&o.stdout).trim().is_empty(),
+        Err(_) => false,
+    }
+}
+
+async fn get_current_branch(repo_root: &Path) -> Result<String> {
+    let output = tokio::process::Command::new("git")
+        .current_dir(repo_root)
+        .args(["rev-parse", "--abbrev-ref", "HEAD"])
+        .output()
+        .await
+        .context("failed to get current branch")?;
+
+    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+}
+
+async fn push_branch(repo_root: &Path, branch: &str, renderer: &mut Renderer) -> Result<()> {
+    renderer.info(&format!("pushing {} to remote...", branch));
+
+    let output = tokio::process::Command::new("git")
+        .current_dir(repo_root)
+        .args(["push", "-u", "origin", branch])
+        .output()
+        .await
+        .context("failed to push branch")?;
+
+    if output.status.success() {
+        renderer.stage_complete(&format!("pushed {}", branch), 0);
+    } else {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        renderer.info(&format!("push failed: {}", stderr.trim()));
+    }
+
+    Ok(())
+}
+
+async fn create_pull_request(
+    repo_root: &Path,
+    branch: &str,
+    run_id: &str,
+    renderer: &mut Renderer,
+) -> Result<()> {
+    renderer.info("creating pull request...");
+
+    let default_branch = get_default_remote_branch(repo_root).await?;
+
+    let title = format!("kora: {}", run_id);
+    let body = format!(
+        "## Changes\n\nAutomated by [Kora](https://github.com/usekora/kora) run `{}`.\n\n\
+         Review the changes and merge when ready.",
+        run_id
+    );
+
+    let output = tokio::process::Command::new("gh")
+        .current_dir(repo_root)
+        .args([
+            "pr",
+            "create",
+            "--base",
+            &default_branch,
+            "--head",
+            branch,
+            "--title",
+            &title,
+            "--body",
+            &body,
+        ])
+        .output()
+        .await
+        .context("failed to create pull request")?;
+
+    if output.status.success() {
+        let pr_url = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        renderer.stage_complete("pull request created", 0);
+        renderer.text(&format!("  {}", pr_url));
+    } else {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        renderer.info(&format!("PR creation failed: {}", stderr.trim()));
+    }
+
+    Ok(())
+}
+
+async fn get_default_remote_branch(repo_root: &Path) -> Result<String> {
+    let output = tokio::process::Command::new("git")
+        .current_dir(repo_root)
+        .args(["symbolic-ref", "refs/remotes/origin/HEAD", "--short"])
+        .output()
+        .await;
+
+    if let Ok(o) = output {
+        if o.status.success() {
+            let branch = String::from_utf8_lossy(&o.stdout).trim().to_string();
+            return Ok(branch.trim_start_matches("origin/").to_string());
         }
     }
+
+    Ok("main".to_string())
 }
 
 #[allow(clippy::too_many_arguments)]
