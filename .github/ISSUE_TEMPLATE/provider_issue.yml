@@ -1,0 +1,115 @@
+name: Provider / Agent Behavior Issue
+description: Report unexpected behavior from an AI agent during a Kora pipeline run
+title: "[AGENT] "
+labels: ["agent-behavior"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template when the underlying AI agent (Claude, Codex, etc.) behaves unexpectedly during a Kora run — for example, producing malformed output, ignoring task scope, or failing to follow the plan.
+
+        **Note:** This is for agent behavior issues, not Kora crashes. For Kora bugs, use the Bug Report template.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Preflight Checklist
+      options:
+        - label: I have searched existing issues for similar reports
+          required: true
+        - label: I have not included any API keys, secrets, or sensitive code
+          required: true
+
+  - type: dropdown
+    id: agent_role
+    attributes:
+      label: Agent Role
+      description: Which agent role exhibited the issue?
+      options:
+        - Researcher
+        - Reviewer
+        - Security Auditor
+        - Judge
+        - Planner
+        - Test Architect
+        - Implementor
+        - Validator
+    validations:
+      required: true
+
+  - type: dropdown
+    id: provider
+    attributes:
+      label: Provider
+      description: Which CLI provider was the agent using?
+      options:
+        - Claude
+        - Codex
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: behavior_type
+    attributes:
+      label: Type of Issue
+      options:
+        - Malformed / unparseable output (missing structured markers)
+        - Ignored task scope (modified files outside assignment)
+        - Didn't follow the plan
+        - Produced broken / non-compiling code
+        - Got stuck in a loop
+        - Refused the request
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the agent's behavior and what you expected instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: request
+    attributes:
+      label: Original Request
+      description: What did you ask Kora to do?
+      placeholder: "kora run \"add rate limiting to the /api/users endpoint\""
+    validations:
+      required: true
+
+  - type: dropdown
+    id: reproducible
+    attributes:
+      label: Reproducible?
+      options:
+        - Yes, every time
+        - Sometimes
+        - Only happened once
+        - Haven't retried
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Kora Version
+      placeholder: "kora 0.1.0"
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Agent Output / Logs
+      description: Paste the relevant agent output. Use verbose mode (`Tab` twice) to capture full output.
+      render: shell
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Run directory contents, config, or anything else that might help diagnose.

@@ -1,0 +1,78 @@
+name: Feature Request
+description: Suggest a new feature or improvement
+title: "[FEATURE] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have an idea for Kora? We'd love to hear it. Focus on the problem you're trying to solve — we'll figure out the best solution together.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Preflight Checklist
+      options:
+        - label: I have searched existing issues and this hasn't been requested
+          required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: What problem does this feature solve? Focus on the problem, not the solution.
+      placeholder: "When working on large monorepos, the researcher takes too long because..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: How would you ideally use this feature? Describe the user experience.
+      placeholder: |
+        I'd like to be able to run `kora run --scope src/api/` to limit the researcher's
+        codebase analysis to a specific directory...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      options:
+        - Pipeline / Agents
+        - Providers (Claude, Codex, Gemini)
+        - Terminal UX
+        - Configuration
+        - Performance
+        - New Command
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How important is this to your workflow?
+      options:
+        - Nice to have
+        - Would improve my workflow
+        - Important — currently using a workaround
+        - Critical — blocking my usage
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives / Workarounds
+      description: Have you tried any workarounds? Are there alternative solutions?
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Screenshots, examples, links, or anything else that might help.

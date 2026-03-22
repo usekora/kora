@@ -1,0 +1,129 @@
+name: Bug Report
+description: Report a bug in Kora
+title: "[BUG] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug! Please fill out the sections below so we can reproduce and fix the issue.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Preflight Checklist
+      options:
+        - label: I have searched existing issues and this hasn't been reported
+          required: true
+        - label: I am running the latest version of Kora
+          required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: A clear description of the bug.
+      placeholder: "When I run `kora run \"add auth\"`, the pipeline crashes during the review loop..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What should have happened?
+      description: What you expected Kora to do instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to Reproduce
+      description: Minimal steps to trigger the bug.
+      placeholder: |
+        1. Run `kora configure` and select Claude
+        2. Run `kora run "add dark mode"`
+        3. Wait for reviewer stage
+        4. See error...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: provider
+    attributes:
+      label: AI Provider
+      description: Which CLI provider were you using?
+      options:
+        - Claude
+        - Codex
+        - Multiple / Mixed
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: stage
+    attributes:
+      label: Pipeline Stage
+      description: Which stage was the pipeline in when the bug occurred?
+      options:
+        - Configure
+        - Researcher
+        - Reviewer / Security Auditor
+        - Judge
+        - Planner
+        - Test Architect
+        - Implementors
+        - Validator
+        - Merge Flow
+        - Resume / History / Clean
+        - Not sure
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Kora Version
+      description: "Output of `kora --version`"
+      placeholder: "kora 0.1.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      options:
+        - macOS (Apple Silicon)
+        - macOS (Intel)
+        - Linux (x86_64)
+        - Linux (ARM)
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: regression
+    attributes:
+      label: Is this a regression?
+      description: Did this work in a previous version?
+      options:
+        - "No"
+        - "Yes"
+        - Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error Output / Logs
+      description: Paste any error messages or relevant terminal output.
+      render: shell
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Screenshots, config snippets, or anything else that might help.
