@@ -112,6 +112,7 @@ graph LR
 
 ## Key features
 
+- **Built in Rust** — single binary, instant startup, minimal memory footprint. The orchestrator itself adds near-zero overhead — all the time and resources go to your AI agents, not the tool managing them
 - **Adaptive pipeline** — not every task needs the full team. Kora auto-classifies requests and scales the pipeline accordingly. A typo fix skips straight to implementation; a complex feature gets the full pipeline with security auditing
 - **Smart provider routing** — pipeline presets automatically route each agent to the best available provider. Claude for deep reasoning, Codex for fast validation, Gemini for large-context research — based on what you have installed
 - **Provider-agnostic** — uses your existing AI CLI tools (Claude Code, Codex, or Gemini). No API keys, no vendor lock-in
