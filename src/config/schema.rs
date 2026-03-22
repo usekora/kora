@@ -15,7 +15,6 @@ pub struct Config {
     pub validation_loop: LoopConfig,
     pub implementation: ImplementationConfig,
     pub output: OutputConfig,
-    pub runs_dir: PathBuf,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -134,7 +133,6 @@ impl Default for Config {
             output: OutputConfig {
                 default_verbosity: Verbosity::Focused,
             },
-            runs_dir: PathBuf::from(".kora/runs"),
         }
     }
 }

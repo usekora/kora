@@ -15,9 +15,8 @@ struct RunGroup {
     runs: Vec<RunState>,
 }
 
-pub fn run_history(project_root: &Path) -> Result<()> {
-    let config = crate::config::load(project_root)?;
-    let runs_dir = project_root.join(&config.runs_dir);
+pub fn run_history(_project_root: &Path) -> Result<()> {
+    let runs_dir = crate::config::runs_dir();
 
     if !runs_dir.exists() {
         println!("  no run history found");

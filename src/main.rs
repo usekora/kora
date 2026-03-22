@@ -62,10 +62,8 @@ fn main() -> Result<()> {
             history::run_history(&project_root)?;
         }
         Some(Commands::Clean) => {
-            let config = config::load(&project_root)?;
             let rt = tokio::runtime::Runtime::new()?;
             rt.block_on(kora::cli::clean::run_clean(&project_root))?;
-            let _ = config;
         }
         None => {
             run_interactive_session(&project_root)?;
@@ -139,7 +137,7 @@ fn run_interactive_session(project_root: &std::path::Path) -> Result<()> {
                     &mut renderer,
                 ))?;
 
-                let runs_dir = project_root.join(&config.runs_dir);
+                let runs_dir = config::runs_dir();
                 if let Ok(runs) = load_latest_run(&runs_dir) {
                     last_run = Some(runs);
                 }

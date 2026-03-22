@@ -16,7 +16,7 @@ pub fn run_resume(project_root: &Path) -> Result<()> {
         return Ok(());
     }
 
-    let runs_dir = project_root.join(&config.runs_dir);
+    let runs_dir = crate::config::runs_dir();
     let interrupted = RunDirectory::list_interrupted(&runs_dir)?;
 
     if interrupted.is_empty() {

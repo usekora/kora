@@ -102,8 +102,8 @@ pub fn run_configure(project_root: &Path) -> Result<()> {
         _ => Verbosity::Verbose,
     };
 
-    config::save(project_root, &config)?;
-    println!("\n  Configuration saved to .kora/config.yml\n");
+    config::save_home(&config)?;
+    println!("\n  Configuration saved to ~/.kora/config.yml\n");
 
     Ok(())
 }

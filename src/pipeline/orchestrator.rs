@@ -26,7 +26,7 @@ pub async fn run_pipeline(
     options: PipelineOptions,
     renderer: &mut Renderer,
 ) -> Result<()> {
-    let runs_dir = project_root.join(&config.runs_dir);
+    let runs_dir = crate::config::runs_dir();
     let checkpoints = effective_checkpoints(config, &options);
 
     let get_provider = |agent_provider: &str| -> Option<Box<dyn Provider>> {
