@@ -24,8 +24,15 @@ pub async fn run_review_loop(
     renderer: &mut Renderer,
     get_provider: &dyn Fn(&str) -> Option<Box<dyn Provider>>,
 ) -> Result<ReviewOutcome> {
+    // If plan_reviewer is disabled, skip the entire review loop (auto-approve)
+    if !config.agents.plan_reviewer.enabled {
+        renderer.info("plan reviewer disabled, auto-approving");
+        return Ok(ReviewOutcome::Approved);
+    }
+
     let max = config.review_loop.max_iterations;
     let no_flags: Vec<String> = vec![];
+    let security_enabled = config.agents.plan_security_auditor.enabled;
 
     for iteration in 1..=max {
         run_state.increment_iteration();
@@ -39,8 +46,6 @@ pub async fn run_review_loop(
 
         let reviewer_provider = get_provider(&config.agents.plan_reviewer.provider)
             .context("no provider available for plan reviewer")?;
-        let security_provider = get_provider(&config.agents.plan_security_auditor.provider)
-            .context("no provider available for plan security auditor")?;
 
         let review_prompt = context::build_reviewer_prompt(
             &runs_dir.join(&run_state.id),
@@ -49,58 +54,81 @@ pub async fn run_review_loop(
             project_root,
             config.agents.plan_reviewer.custom_instructions.as_deref(),
         )?;
-        let security_prompt = context::build_security_prompt(
-            &runs_dir.join(&run_state.id),
-            iteration,
-            &run_state.request,
-            project_root,
-            config
-                .agents
-                .plan_security_auditor
-                .custom_instructions
-                .as_deref(),
-        )?;
 
         let reviewer_timeout = Some(Duration::from_secs(
             config.agents.plan_reviewer.timeout_seconds,
         ));
-        let security_timeout = Some(Duration::from_secs(
-            config.agents.plan_security_auditor.timeout_seconds,
-        ));
 
-        let (review_result, security_result) = tokio::join!(
-            reviewer_provider.run(
-                &review_prompt.prompt,
-                project_root,
-                &no_flags,
-                reviewer_timeout
-            ),
-            security_provider.run(
-                &security_prompt.prompt,
-                project_root,
-                &no_flags,
-                security_timeout
-            ),
-        );
+        let (review_output, security_output) = if security_enabled {
+            let security_provider = get_provider(&config.agents.plan_security_auditor.provider)
+                .context("no provider available for plan security auditor")?;
 
-        let review_output = review_result.context("reviewer failed")?;
-        let security_output = security_result.context("security auditor failed")?;
+            let security_prompt = context::build_security_prompt(
+                &runs_dir.join(&run_state.id),
+                iteration,
+                &run_state.request,
+                project_root,
+                config
+                    .agents
+                    .plan_security_auditor
+                    .custom_instructions
+                    .as_deref(),
+            )?;
+
+            let security_timeout = Some(Duration::from_secs(
+                config.agents.plan_security_auditor.timeout_seconds,
+            ));
+
+            let (review_result, security_result) = tokio::join!(
+                reviewer_provider.run(
+                    &review_prompt.prompt,
+                    project_root,
+                    &no_flags,
+                    reviewer_timeout
+                ),
+                security_provider.run(
+                    &security_prompt.prompt,
+                    project_root,
+                    &no_flags,
+                    security_timeout
+                ),
+            );
+
+            (
+                review_result.context("reviewer failed")?,
+                Some(security_result.context("security auditor failed")?),
+            )
+        } else {
+            let review_result = reviewer_provider
+                .run(
+                    &review_prompt.prompt,
+                    project_root,
+                    &no_flags,
+                    reviewer_timeout,
+                )
+                .await
+                .context("reviewer failed")?;
+            (review_result, None)
+        };
 
         std::fs::write(iter_dir.join("review.md"), &review_output.text)?;
-        std::fs::write(iter_dir.join("security-audit.md"), &security_output.text)?;
-
         renderer.stage_complete("reviewer", review_output.duration.as_secs());
-        renderer.stage_complete("security auditor", security_output.duration.as_secs());
+
+        if let Some(ref sec_output) = security_output {
+            std::fs::write(iter_dir.join("security-audit.md"), &sec_output.text)?;
+            renderer.stage_complete("security auditor", sec_output.duration.as_secs());
+        }
 
         if let Some(review_summary) = output_parser::parse_review(&review_output.text) {
             for f in &review_summary.findings {
                 renderer.finding(&f.severity, &f.title);
             }
         }
-        if let Some(security_summary) = output_parser::parse_security_review(&security_output.text)
-        {
-            for f in &security_summary.findings {
-                renderer.finding(&f.severity, &f.title);
+        if let Some(ref sec_output) = security_output {
+            if let Some(security_summary) = output_parser::parse_security_review(&sec_output.text) {
+                for f in &security_summary.findings {
+                    renderer.finding(&f.severity, &f.title);
+                }
             }
         }
 

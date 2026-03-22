@@ -211,30 +211,47 @@ async fn run_planning_and_implementation(
         breakdown.critical_path.join(" -> "),
     ));
 
-    renderer.stage_header("test architect", "designing tests");
-    run_state.advance(Stage::TestArchitecting);
-    run_state.save(runs_dir)?;
+    let test_strategy = if config.agents.test_architect.enabled {
+        renderer.stage_header("test architect", "designing tests");
+        run_state.advance(Stage::TestArchitecting);
+        run_state.save(runs_dir)?;
 
-    let ta_provider = get_provider(&config.agents.test_architect.provider)
-        .context("no provider for test architect")?;
-    let ta_prompt = context::build_test_architect_prompt(
-        &runs_dir.join(&run_state.id),
-        &run_state.request,
-        project_root,
-        config.agents.test_architect.custom_instructions.as_deref(),
-    )?;
+        let ta_provider = get_provider(&config.agents.test_architect.provider)
+            .context("no provider for test architect")?;
+        let ta_prompt = context::build_test_architect_prompt(
+            &runs_dir.join(&run_state.id),
+            &run_state.request,
+            project_root,
+            config.agents.test_architect.custom_instructions.as_deref(),
+        )?;
 
-    let test_strategy = test_architect::run_test_architect(
-        ta_provider.as_ref(),
-        &ta_prompt.prompt,
-        project_root,
-        run_dir,
-        &no_flags,
-        config.agents.test_architect.timeout_seconds,
-    )
-    .await?;
+        let strategy = test_architect::run_test_architect(
+            ta_provider.as_ref(),
+            &ta_prompt.prompt,
+            project_root,
+            run_dir,
+            &no_flags,
+            config.agents.test_architect.timeout_seconds,
+        )
+        .await?;
 
-    renderer.stage_complete("test architect", 0);
+        renderer.stage_complete("test architect", 0);
+        strategy
+    } else {
+        renderer.info("test architect disabled, skipping test planning");
+        run_state.advance(Stage::TestArchitecting);
+        run_state.save(runs_dir)?;
+        crate::agent::output_parser::TestStrategy {
+            per_task: std::collections::HashMap::new(),
+            post_merge: crate::agent::output_parser::PostMergeTests {
+                integration_tests: vec![],
+            },
+            testing_patterns: crate::agent::output_parser::TestingPatterns {
+                framework: String::new(),
+                conventions: String::new(),
+            },
+        }
+    };
 
     if should_checkpoint(&Stage::Implementing, checkpoints)
         && !renderer.checkpoint_prompt("implementation")
@@ -339,99 +356,104 @@ async fn run_validation_and_merge(
     auto_merge: bool,
 ) -> Result<()> {
     let no_flags: Vec<String> = vec![];
-    let max_iterations = config.validation_loop.max_iterations;
 
-    for iteration in 1..=max_iterations {
-        run_state.advance(Stage::Validating);
-        run_state.save(runs_dir)?;
+    if !config.agents.validator.enabled {
+        renderer.info("validator disabled, skipping validation");
+    } else {
+        let max_iterations = config.validation_loop.max_iterations;
 
-        renderer.stage_header("validator", &format!("iteration {}", iteration));
+        for iteration in 1..=max_iterations {
+            run_state.advance(Stage::Validating);
+            run_state.save(runs_dir)?;
 
-        let validator_provider =
-            get_provider(&config.agents.validator.provider).context("no provider for validator")?;
-        let validator_prompt = context::build_validator_prompt(
-            &runs_dir.join(&run_state.id),
-            &run_state.request,
-            project_root,
-            config.agents.validator.custom_instructions.as_deref(),
-        )?;
+            renderer.stage_header("validator", &format!("iteration {}", iteration));
 
-        let validator_output = validation::run_validator(
-            validator_provider.as_ref(),
-            &validator_prompt.prompt,
-            project_root,
-            run_dir,
-            &no_flags,
-            config.agents.validator.timeout_seconds,
-        )
-        .await?;
+            let validator_provider = get_provider(&config.agents.validator.provider)
+                .context("no provider for validator")?;
+            let validator_prompt = context::build_validator_prompt(
+                &runs_dir.join(&run_state.id),
+                &run_state.request,
+                project_root,
+                config.agents.validator.custom_instructions.as_deref(),
+            )?;
 
-        renderer.stage_complete("validator", 0);
-        renderer.info(&format!(
-            "validation: {} blocking, {} minor, tests: {} passed / {} failed",
-            validator_output.validation.blocking_issues,
-            validator_output.validation.minor_issues,
-            validator_output.validation.tests_passed,
-            validator_output.validation.tests_failed,
-        ));
+            let validator_output = validation::run_validator(
+                validator_provider.as_ref(),
+                &validator_prompt.prompt,
+                project_root,
+                run_dir,
+                &no_flags,
+                config.agents.validator.timeout_seconds,
+            )
+            .await?;
 
-        if validator_output.validation.passed
-            || (validator_output.validation.blocking_issues == 0
-                && validator_output.validation.tests_failed == 0)
-        {
-            renderer.info("validation passed");
-            break;
-        }
-
-        if iteration >= max_iterations {
-            renderer.escalation(&format!(
-                "validation failed after {} iterations",
-                max_iterations
+            renderer.stage_complete("validator", 0);
+            renderer.info(&format!(
+                "validation: {} blocking, {} minor, tests: {} passed / {} failed",
+                validator_output.validation.blocking_issues,
+                validator_output.validation.minor_issues,
+                validator_output.validation.tests_passed,
+                validator_output.validation.tests_failed,
             ));
-            run_state.set_error("validation loop exceeded max iterations");
+
+            if validator_output.validation.passed
+                || (validator_output.validation.blocking_issues == 0
+                    && validator_output.validation.tests_failed == 0)
+            {
+                renderer.info("validation passed");
+                break;
+            }
+
+            if iteration >= max_iterations {
+                renderer.escalation(&format!(
+                    "validation failed after {} iterations",
+                    max_iterations
+                ));
+                run_state.set_error("validation loop exceeded max iterations");
+                run_state.save(runs_dir)?;
+                return Ok(());
+            }
+
+            run_state.advance(Stage::Fixing);
             run_state.save(runs_dir)?;
-            return Ok(());
+
+            renderer.stage_header("fixer", "applying fixes");
+
+            let fixes = validation::extract_required_fixes(&validator_output.raw_text);
+
+            if fixes.is_empty() {
+                renderer.escalation("validator reported FAIL but no required fixes were found");
+                run_state.set_error("validation failed with no actionable fixes");
+                run_state.save(runs_dir)?;
+                return Ok(());
+            }
+
+            let fix_provider = get_provider(&config.agents.implementor.provider)
+                .context("no provider for fixer")?;
+
+            let fix_prompt = context::build_fix_prompt(
+                &runs_dir.join(&run_state.id),
+                &run_state.request,
+                &fixes,
+                project_root,
+                config.agents.implementor.custom_instructions.as_deref(),
+            )?;
+
+            let fix_timeout = Some(Duration::from_secs(
+                config.agents.implementor.timeout_seconds,
+            ));
+            let fix_output = fix_provider
+                .run(&fix_prompt.prompt, project_root, &no_flags, fix_timeout)
+                .await
+                .context("fixer agent failed")?;
+
+            let fix_dir = run_dir.validation_dir().join(format!("fix-{}", iteration));
+            std::fs::create_dir_all(&fix_dir)?;
+            std::fs::write(fix_dir.join("output.md"), &fix_output.text)?;
+
+            renderer.stage_complete("fixer", fix_output.duration.as_secs());
         }
-
-        run_state.advance(Stage::Fixing);
-        run_state.save(runs_dir)?;
-
-        renderer.stage_header("fixer", "applying fixes");
-
-        let fixes = validation::extract_required_fixes(&validator_output.raw_text);
-
-        if fixes.is_empty() {
-            renderer.escalation("validator reported FAIL but no required fixes were found");
-            run_state.set_error("validation failed with no actionable fixes");
-            run_state.save(runs_dir)?;
-            return Ok(());
-        }
-
-        let fix_provider =
-            get_provider(&config.agents.implementor.provider).context("no provider for fixer")?;
-
-        let fix_prompt = context::build_fix_prompt(
-            &runs_dir.join(&run_state.id),
-            &run_state.request,
-            &fixes,
-            project_root,
-            config.agents.implementor.custom_instructions.as_deref(),
-        )?;
-
-        let fix_timeout = Some(Duration::from_secs(
-            config.agents.implementor.timeout_seconds,
-        ));
-        let fix_output = fix_provider
-            .run(&fix_prompt.prompt, project_root, &no_flags, fix_timeout)
-            .await
-            .context("fixer agent failed")?;
-
-        let fix_dir = run_dir.validation_dir().join(format!("fix-{}", iteration));
-        std::fs::create_dir_all(&fix_dir)?;
-        std::fs::write(fix_dir.join("output.md"), &fix_output.text)?;
-
-        renderer.stage_complete("fixer", fix_output.duration.as_secs());
-    }
+    } // end validator enabled block
 
     let worktree_manager = WorktreeManager::new(project_root);
     let merge_outcome = merge::run_merge_flow(

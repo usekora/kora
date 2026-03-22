@@ -271,9 +271,16 @@ impl ImplementationFleet {
             self.config.agents.implementor.timeout_seconds,
         ));
 
-        let code_reviewer_provider = get_provider(&self.config.agents.code_reviewer.provider);
-        let code_security_provider =
-            get_provider(&self.config.agents.code_security_auditor.provider);
+        let code_reviewer_provider = if self.config.agents.code_reviewer.enabled {
+            get_provider(&self.config.agents.code_reviewer.provider)
+        } else {
+            None
+        };
+        let code_security_provider = if self.config.agents.code_security_auditor.enabled {
+            get_provider(&self.config.agents.code_security_auditor.provider)
+        } else {
+            None
+        };
         let code_reviewer_timeout =
             Duration::from_secs(self.config.agents.code_reviewer.timeout_seconds);
         let code_security_timeout =
@@ -474,7 +481,8 @@ async fn run_code_review_loop(
     implementor: &dyn Provider,
     implementor_timeout: Option<Duration>,
 ) {
-    let (Some(reviewer), Some(security)) = (code_reviewer, code_security) else {
+    // If code_reviewer is disabled (None), skip the entire code review loop (auto-approve)
+    let Some(reviewer) = code_reviewer else {
         return;
     };
 
@@ -486,45 +494,72 @@ async fn run_code_review_loop(
 
         let review_prompt =
             context::build_code_reviewer_prompt(run_dir, task_id, &diff, reviewer_custom, wt_path);
-        let security_prompt = context::build_code_security_auditor_prompt(
-            run_dir,
-            task_id,
-            &diff,
-            security_custom,
-            wt_path,
-        );
 
-        let (review_prompt, security_prompt) = match (review_prompt, security_prompt) {
-            (Ok(r), Ok(s)) => (r, s),
+        let review_prompt = match review_prompt {
+            Ok(r) => r,
             _ => return,
         };
 
-        let (review_result, security_result) = tokio::join!(
-            reviewer.run(
-                &review_prompt.prompt,
+        let (review_text, security_text) = if let Some(security) = code_security {
+            let security_prompt = context::build_code_security_auditor_prompt(
+                run_dir,
+                task_id,
+                &diff,
+                security_custom,
                 wt_path,
-                no_flags,
-                Some(reviewer_timeout),
-            ),
-            security.run(
-                &security_prompt.prompt,
-                wt_path,
-                no_flags,
-                Some(security_timeout),
-            ),
-        );
+            );
+
+            let security_prompt = match security_prompt {
+                Ok(s) => s,
+                _ => return,
+            };
+
+            let (review_result, security_result) = tokio::join!(
+                reviewer.run(
+                    &review_prompt.prompt,
+                    wt_path,
+                    no_flags,
+                    Some(reviewer_timeout),
+                ),
+                security.run(
+                    &security_prompt.prompt,
+                    wt_path,
+                    no_flags,
+                    Some(security_timeout),
+                ),
+            );
+
+            (
+                review_result
+                    .as_ref()
+                    .map(|o| o.text.clone())
+                    .unwrap_or_default(),
+                security_result
+                    .as_ref()
+                    .map(|o| o.text.clone())
+                    .unwrap_or_default(),
+            )
+        } else {
+            let review_result = reviewer
+                .run(
+                    &review_prompt.prompt,
+                    wt_path,
+                    no_flags,
+                    Some(reviewer_timeout),
+                )
+                .await;
+
+            (
+                review_result
+                    .as_ref()
+                    .map(|o| o.text.clone())
+                    .unwrap_or_default(),
+                String::new(),
+            )
+        };
 
         let review_dir = task_dir.join(format!("code-review-{}", iteration));
         let _ = std::fs::create_dir_all(&review_dir);
-
-        let review_text = review_result
-            .as_ref()
-            .map(|o| o.text.clone())
-            .unwrap_or_default();
-        let security_text = security_result
-            .as_ref()
-            .map(|o| o.text.clone())
-            .unwrap_or_default();
 
         let _ = std::fs::write(review_dir.join("code-review.md"), &review_text);
         let _ = std::fs::write(review_dir.join("code-security.md"), &security_text);
