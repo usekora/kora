@@ -4,5 +4,6 @@ pub mod config;
 pub mod git;
 pub mod pipeline;
 pub mod provider;
+pub mod shutdown;
 pub mod state;
 pub mod terminal;

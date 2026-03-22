@@ -60,10 +60,7 @@ impl Provider for CodexProvider {
 
         let output = match timeout {
             Some(duration) => {
-                let child = cmd
-                    .stdout(Stdio::piped())
-                    .stderr(Stdio::piped())
-                    .spawn()?;
+                let child = cmd.stdout(Stdio::piped()).stderr(Stdio::piped()).spawn()?;
                 match tokio::time::timeout(duration, child.wait_with_output()).await {
                     Ok(result) => result?,
                     Err(_) => {

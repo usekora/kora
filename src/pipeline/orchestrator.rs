@@ -405,7 +405,9 @@ async fn run_validation_and_merge(
             config.agents.implementor.custom_instructions.as_deref(),
         )?;
 
-        let fix_timeout = Some(Duration::from_secs(config.agents.implementor.timeout_seconds));
+        let fix_timeout = Some(Duration::from_secs(
+            config.agents.implementor.timeout_seconds,
+        ));
         let fix_output = fix_provider
             .run(&fix_prompt.prompt, project_root, &no_flags, fix_timeout)
             .await

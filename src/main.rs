@@ -10,11 +10,23 @@ use kora::cli::resume;
 use kora::config;
 use kora::pipeline::orchestrator::{self, PipelineOptions};
 use kora::provider::{detect_providers, ProviderKind};
+use kora::shutdown::{self, ShutdownSignal};
 use kora::state::RunState;
 use kora::terminal::verbosity::VerbosityState;
 use kora::terminal::Renderer;
 
 fn main() -> Result<()> {
+    let signal = ShutdownSignal::new();
+    shutdown::install_ctrlc_handler(&signal);
+
+    let result = run(signal);
+
+    shutdown::restore_terminal();
+
+    result
+}
+
+fn run(signal: ShutdownSignal) -> Result<()> {
     let cli = Cli::parse();
     let project_root = env::current_dir()?;
 
@@ -48,12 +60,20 @@ fn main() -> Result<()> {
             };
 
             let rt = tokio::runtime::Runtime::new()?;
-            rt.block_on(orchestrator::run_pipeline(
-                &config,
-                &project_root,
-                options,
-                &mut renderer,
-            ))?;
+            rt.block_on(async {
+                tokio::select! {
+                    result = orchestrator::run_pipeline(
+                        &config,
+                        &project_root,
+                        options,
+                        &mut renderer,
+                    ) => result,
+                    _ = signal.wait() => {
+                        renderer.info("\n  pipeline interrupted — state saved, resumable with `kora resume`");
+                        Ok(())
+                    }
+                }
+            })?;
         }
         Some(Commands::Resume) => {
             resume::run_resume(&project_root)?;
@@ -66,14 +86,14 @@ fn main() -> Result<()> {
             rt.block_on(kora::cli::clean::run_clean(&project_root))?;
         }
         None => {
-            run_interactive_session(&project_root)?;
+            run_interactive_session(&project_root, signal)?;
         }
     }
 
     Ok(())
 }
 
-fn run_interactive_session(project_root: &std::path::Path) -> Result<()> {
+fn run_interactive_session(project_root: &std::path::Path, signal: ShutdownSignal) -> Result<()> {
     let config = config::load(project_root)?;
     let detected = detect_providers();
     let mut renderer = Renderer::new();
@@ -93,6 +113,10 @@ fn run_interactive_session(project_root: &std::path::Path) -> Result<()> {
     let mut last_run: Option<RunState> = None;
 
     loop {
+        if signal.is_triggered() {
+            break;
+        }
+
         let input = kora::terminal::input::read_user_input()?;
         if input.is_empty() {
             break;
@@ -128,13 +152,30 @@ fn run_interactive_session(project_root: &std::path::Path) -> Result<()> {
                     resume_run_id: None,
                 };
 
+                let pipeline_signal = signal.clone_signal();
                 let rt = tokio::runtime::Runtime::new()?;
-                rt.block_on(orchestrator::run_pipeline(
-                    &config,
-                    project_root,
-                    options,
-                    &mut renderer,
-                ))?;
+                let result = rt.block_on(async {
+                    tokio::select! {
+                        result = orchestrator::run_pipeline(
+                            &config,
+                            project_root,
+                            options,
+                            &mut renderer,
+                        ) => result,
+                        _ = pipeline_signal.wait() => {
+                            renderer.info("\n  pipeline interrupted — state saved, resumable with `kora resume`");
+                            Ok(())
+                        }
+                    }
+                });
+
+                if let Err(e) = result {
+                    renderer.info(&format!("  error: {}", e));
+                }
+
+                if signal.is_triggered() {
+                    break;
+                }
 
                 let runs_dir = config::runs_dir();
                 if let Ok(runs) = load_latest_run(&runs_dir) {
@@ -185,13 +226,20 @@ fn print_no_provider_error() {
     eprintln!();
 
     let providers = [
-        (ProviderKind::Claude, "https://docs.anthropic.com/en/docs/claude-code"),
+        (
+            ProviderKind::Claude,
+            "https://docs.anthropic.com/en/docs/claude-code",
+        ),
         (ProviderKind::Codex, "https://github.com/openai/codex"),
     ];
 
     for (kind, url) in providers {
         let installed = which::which(kind.cli_name()).is_ok();
-        let status = if installed { "✓ installed" } else { "✗ not found" };
+        let status = if installed {
+            "✓ installed"
+        } else {
+            "✗ not found"
+        };
         eprintln!("    {}  {}", status, kind.cli_name());
         if !installed {
             eprintln!("         {}", url);

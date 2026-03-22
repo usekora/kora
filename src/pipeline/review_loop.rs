@@ -67,7 +67,12 @@ pub async fn run_review_loop(
         ));
 
         let (review_result, security_result) = tokio::join!(
-            reviewer_provider.run(&review_prompt.prompt, project_root, &no_flags, reviewer_timeout),
+            reviewer_provider.run(
+                &review_prompt.prompt,
+                project_root,
+                &no_flags,
+                reviewer_timeout
+            ),
             security_provider.run(
                 &security_prompt.prompt,
                 project_root,
