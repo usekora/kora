@@ -646,6 +646,134 @@ pub fn toggle_list(
     }
 }
 
+/// Confirmation dialog with a warning message and Yes/No options.
+/// Returns true if confirmed, false if cancelled.
+pub fn confirm_action(message: &str) -> io::Result<bool> {
+    let mut stdout = io::stdout();
+    let mut selected: usize = 0;
+
+    terminal::enable_raw_mode()?;
+    execute!(stdout, cursor::Hide)?;
+
+    // Layout: blank + warning + blank + 2 options + blank + hint = 6 lines with \r\n
+    let move_up: usize = 6;
+    let options = ["Yes, continue", "No, cancel"];
+
+    loop {
+        // Warning message
+        execute!(
+            stdout,
+            cursor::MoveToColumn(0),
+            Clear(ClearType::CurrentLine),
+            Print("\r\n")
+        )?;
+        execute!(
+            stdout,
+            cursor::MoveToColumn(0),
+            Clear(ClearType::CurrentLine),
+            Print("  "),
+            SetForegroundColor(Color::Yellow),
+            Print("⚠ "),
+            SetForegroundColor(Color::White),
+            Print(message),
+            ResetColor,
+            Print("\r\n"),
+        )?;
+        execute!(
+            stdout,
+            cursor::MoveToColumn(0),
+            Clear(ClearType::CurrentLine),
+            Print("\r\n")
+        )?;
+
+        // Options
+        for (i, opt) in options.iter().enumerate() {
+            execute!(
+                stdout,
+                cursor::MoveToColumn(0),
+                Clear(ClearType::CurrentLine)
+            )?;
+            if i == selected {
+                execute!(
+                    stdout,
+                    Print("  "),
+                    SetForegroundColor(KORA_PURPLE),
+                    Print("▸ "),
+                    SetForegroundColor(Color::White),
+                    Print(opt),
+                    ResetColor,
+                    Print("\r\n"),
+                )?;
+            } else {
+                execute!(
+                    stdout,
+                    SetForegroundColor(DIM),
+                    Print(format!("    {}", opt)),
+                    ResetColor,
+                    Print("\r\n"),
+                )?;
+            }
+        }
+
+        // Padding + hint
+        execute!(
+            stdout,
+            cursor::MoveToColumn(0),
+            Clear(ClearType::CurrentLine),
+            Print("\r\n")
+        )?;
+        execute!(
+            stdout,
+            cursor::MoveToColumn(0),
+            Clear(ClearType::CurrentLine),
+            Print("  "),
+            SetForegroundColor(KORA_PURPLE),
+            Print("Enter"),
+            SetForegroundColor(DIM),
+            Print(" confirm · "),
+            SetForegroundColor(KORA_PURPLE),
+            Print("Esc"),
+            SetForegroundColor(DIM),
+            Print(" cancel"),
+            ResetColor,
+        )?;
+
+        stdout.flush()?;
+
+        if let Event::Key(KeyEvent { code, .. }) = event::read()? {
+            match code {
+                KeyCode::Up => selected = 0,
+                KeyCode::Down => selected = 1,
+                KeyCode::Enter | KeyCode::Char(' ') => {
+                    execute!(
+                        stdout,
+                        cursor::MoveUp(move_up as u16),
+                        cursor::MoveToColumn(0),
+                        Clear(ClearType::FromCursorDown),
+                        cursor::Show
+                    )?;
+                    terminal::disable_raw_mode()?;
+                    return Ok(selected == 0);
+                }
+                KeyCode::Esc | KeyCode::Char('q') => {
+                    execute!(
+                        stdout,
+                        cursor::MoveUp(move_up as u16),
+                        cursor::MoveToColumn(0),
+                        Clear(ClearType::FromCursorDown),
+                        cursor::Show
+                    )?;
+                    terminal::disable_raw_mode()?;
+                    return Ok(false);
+                }
+                _ => {}
+            }
+        }
+
+        execute!(stdout, cursor::MoveUp(move_up as u16))?;
+    }
+}
+
 /// Preset entry for the preset selection panel.
 pub struct PresetOption {
     pub name: String,
@@ -670,54 +798,116 @@ pub fn preset_panel(presets: &[PresetOption], current: usize) -> io::Result<Opti
 
     loop {
         // Top padding
-        execute!(stdout, cursor::MoveToColumn(0), Clear(ClearType::CurrentLine), Print("\r\n"))?;
+        execute!(
+            stdout,
+            cursor::MoveToColumn(0),
+            Clear(ClearType::CurrentLine),
+            Print("\r\n")
+        )?;
 
         for (i, preset) in presets.iter().enumerate() {
             // Line 1: name + bars (always shown)
-            execute!(stdout, cursor::MoveToColumn(0), Clear(ClearType::CurrentLine))?;
+            execute!(
+                stdout,
+                cursor::MoveToColumn(0),
+                Clear(ClearType::CurrentLine)
+            )?;
+            let has_bars = !preset.quality_bar.is_empty();
             if i == selected {
                 execute!(
                     stdout,
-                    Print("  "), SetForegroundColor(KORA_PURPLE), Print("▸ "),
-                    SetForegroundColor(Color::White), SetAttribute(Attribute::Bold),
-                    Print(format!("{:<12}", preset.name)),
-                    SetAttribute(Attribute::Reset), ResetColor,
-                    SetForegroundColor(KORA_PURPLE), Print(&preset.quality_bar),
-                    SetForegroundColor(DIM), Print(" quality  "),
-                    SetForegroundColor(KORA_PURPLE), Print(&preset.speed_bar),
-                    SetForegroundColor(DIM), Print(" speed"),
-                    ResetColor, Print("\r\n"),
+                    Print("  "),
+                    SetForegroundColor(KORA_PURPLE),
+                    Print("▸ "),
+                    SetForegroundColor(Color::White),
+                    SetAttribute(Attribute::Bold),
+                    Print(&preset.name),
+                    SetAttribute(Attribute::Reset),
+                    ResetColor,
                 )?;
+                if has_bars {
+                    execute!(
+                        stdout,
+                        Print("  "),
+                        SetForegroundColor(KORA_PURPLE),
+                        Print(&preset.quality_bar),
+                        SetForegroundColor(DIM),
+                        Print(" quality  "),
+                        SetForegroundColor(KORA_PURPLE),
+                        Print(&preset.speed_bar),
+                        SetForegroundColor(DIM),
+                        Print(" speed"),
+                        ResetColor,
+                    )?;
+                }
+                execute!(stdout, Print("\r\n"))?;
             } else {
                 execute!(
                     stdout,
                     Print("    "),
                     SetForegroundColor(DIM),
-                    Print(format!("{:<12}", preset.name)),
-                    Print(&preset.quality_bar), Print(" quality  "),
-                    Print(&preset.speed_bar), Print(" speed"),
-                    ResetColor, Print("\r\n"),
+                    Print(&preset.name)
                 )?;
+                if has_bars {
+                    execute!(
+                        stdout,
+                        Print("  "),
+                        Print(&preset.quality_bar),
+                        Print(" quality  "),
+                        Print(&preset.speed_bar),
+                        Print(" speed"),
+                    )?;
+                }
+                execute!(stdout, ResetColor, Print("\r\n"))?;
             }
 
             // Line 2: description (always shown)
-            execute!(stdout, cursor::MoveToColumn(0), Clear(ClearType::CurrentLine))?;
+            execute!(
+                stdout,
+                cursor::MoveToColumn(0),
+                Clear(ClearType::CurrentLine)
+            )?;
             if i == selected {
-                execute!(stdout, SetForegroundColor(Color::White), Print(format!("      {}", preset.description)), ResetColor, Print("\r\n"))?;
+                execute!(
+                    stdout,
+                    SetForegroundColor(Color::White),
+                    Print(format!("      {}", preset.description)),
+                    ResetColor,
+                    Print("\r\n")
+                )?;
             } else {
-                execute!(stdout, SetForegroundColor(DIM), Print(format!("      {}", preset.description)), ResetColor, Print("\r\n"))?;
+                execute!(
+                    stdout,
+                    SetForegroundColor(DIM),
+                    Print(format!("      {}", preset.description)),
+                    ResetColor,
+                    Print("\r\n")
+                )?;
             }
         }
 
         // Bottom padding
-        execute!(stdout, cursor::MoveToColumn(0), Clear(ClearType::CurrentLine), Print("\r\n"))?;
+        execute!(
+            stdout,
+            cursor::MoveToColumn(0),
+            Clear(ClearType::CurrentLine),
+            Print("\r\n")
+        )?;
 
         // Hint
         execute!(
-            stdout, cursor::MoveToColumn(0), Clear(ClearType::CurrentLine),
+            stdout,
+            cursor::MoveToColumn(0),
+            Clear(ClearType::CurrentLine),
             Print("  "),
-            SetForegroundColor(KORA_PURPLE), Print("Enter"), SetForegroundColor(DIM), Print(" select · "),
-            SetForegroundColor(KORA_PURPLE), Print("Esc"), SetForegroundColor(DIM), Print(" cancel"),
+            SetForegroundColor(KORA_PURPLE),
+            Print("Enter"),
+            SetForegroundColor(DIM),
+            Print(" select · "),
+            SetForegroundColor(KORA_PURPLE),
+            Print("Esc"),
+            SetForegroundColor(DIM),
+            Print(" cancel"),
             ResetColor,
         )?;
 
@@ -726,14 +916,30 @@ pub fn preset_panel(presets: &[PresetOption], current: usize) -> io::Result<Opti
         if let Event::Key(KeyEvent { code, .. }) = event::read()? {
             match code {
                 KeyCode::Up => selected = selected.saturating_sub(1),
-                KeyCode::Down => { if selected < last_idx { selected += 1; } }
+                KeyCode::Down => {
+                    if selected < last_idx {
+                        selected += 1;
+                    }
+                }
                 KeyCode::Enter | KeyCode::Char(' ') => {
-                    execute!(stdout, cursor::MoveUp(move_up as u16), cursor::MoveToColumn(0), Clear(ClearType::FromCursorDown), cursor::Show)?;
+                    execute!(
+                        stdout,
+                        cursor::MoveUp(move_up as u16),
+                        cursor::MoveToColumn(0),
+                        Clear(ClearType::FromCursorDown),
+                        cursor::Show
+                    )?;
                     terminal::disable_raw_mode()?;
                     return Ok(Some(selected));
                 }
                 KeyCode::Esc | KeyCode::Char('q') => {
-                    execute!(stdout, cursor::MoveUp(move_up as u16), cursor::MoveToColumn(0), Clear(ClearType::FromCursorDown), cursor::Show)?;
+                    execute!(
+                        stdout,
+                        cursor::MoveUp(move_up as u16),
+                        cursor::MoveToColumn(0),
+                        Clear(ClearType::FromCursorDown),
+                        cursor::Show
+                    )?;
                     terminal::disable_raw_mode()?;
                     return Ok(None);
                 }

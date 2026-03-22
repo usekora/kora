@@ -146,15 +146,11 @@ fn select_preset(
         let chosen = PipelinePreset::all()[idx];
 
         // Warn if switching away from Custom to a preset (overrides manual config)
-        if config.pipeline_preset == PipelinePreset::Custom && chosen != PipelinePreset::Custom {
-            let confirm = selector::select(
-                "This will override your custom agent configuration. Continue?",
-                &["Yes, apply preset", "No, keep custom"],
-                0,
-            )?;
-            if confirm != 0 {
-                return Ok(());
-            }
+        if config.pipeline_preset == PipelinePreset::Custom
+            && chosen != PipelinePreset::Custom
+            && !selector::confirm_action("This will override your custom agent configuration.")?
+        {
+            return Ok(());
         }
 
         config.pipeline_preset = chosen;
@@ -180,7 +176,9 @@ fn agent_model_display(agent: &AgentConfig) -> String {
 
 fn agent_models_summary(agents: &AgentsConfig) -> String {
     let configs = agent_configs(agents);
-    let all_default = configs.iter().all(|ac| ac.provider == "default" && ac.model.is_none());
+    let all_default = configs
+        .iter()
+        .all(|ac| ac.provider == "default" && ac.model.is_none());
     if all_default {
         "all default".to_string()
     } else {
@@ -240,7 +238,11 @@ fn edit_agent_models(
     // add it to choices so users can see it and migrate away from it.
     for ac in agent_configs(&config.agents) {
         let display = agent_model_display(ac);
-        if !choices_with_avail.iter().any(|(label, _)| label == &display) && display != "default" {
+        if !choices_with_avail
+            .iter()
+            .any(|(label, _)| label == &display)
+            && display != "default"
+        {
             // Deprecated/unknown model — show it but mark as unavailable
             choices_with_avail.push((display, false));
         }

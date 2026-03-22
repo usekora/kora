@@ -37,6 +37,7 @@ fn run(signal: ShutdownSignal) -> Result<()> {
         Some(Commands::Run {
             request,
             provider,
+            profile,
             yolo,
             careful,
             dry_run,
@@ -61,6 +62,14 @@ fn run(signal: ShutdownSignal) -> Result<()> {
                 renderer.text("");
             }
 
+            let profile_override = profile.map(|p| {
+                p.parse::<kora::state::PipelineProfile>()
+                    .unwrap_or_else(|e| {
+                        eprintln!("  warning: {} — defaulting to standard", e);
+                        kora::state::PipelineProfile::Standard
+                    })
+            });
+
             let options = PipelineOptions {
                 request,
                 yolo,
@@ -68,6 +77,7 @@ fn run(signal: ShutdownSignal) -> Result<()> {
                 dry_run,
                 provider_override: provider,
                 resume_run_id: None,
+                profile_override,
             };
 
             let rt = tokio::runtime::Runtime::new()?;
@@ -108,10 +118,9 @@ fn run_interactive_session(project_root: &std::path::Path, signal: ShutdownSigna
     let mut config = config::load(project_root)?;
     let detected = detect_providers();
     let mut renderer = Renderer::new();
-    let no_providers = detected.is_empty();
 
     // Apply preset on first run if no user config exists
-    if !no_providers && !config::has_user_config(project_root) {
+    if !detected.is_empty() && !config::has_user_config(project_root) {
         presets::apply_preset(config.pipeline_preset, &mut config.agents, &detected);
     }
 
@@ -128,10 +137,9 @@ fn run_interactive_session(project_root: &std::path::Path, signal: ShutdownSigna
         project_root,
     );
 
-    if no_providers {
-        renderer
-            .info("  No AI CLI tools detected. Install claude, codex, or gemini to get started.");
-        renderer.text("");
+    if detected.is_empty() {
+        renderer.no_providers_screen();
+        return Ok(());
     }
 
     let mut last_run: Option<RunState> = None;
@@ -184,14 +192,6 @@ fn run_interactive_session(project_root: &std::path::Path, signal: ShutdownSigna
                 break;
             }
             MetaCommand::None(request) => {
-                // Block pipeline execution when no providers are installed
-                if detect_providers().is_empty() {
-                    renderer.echo_input(&input);
-                    renderer.info("  No AI CLI tools installed. Install claude, codex, or gemini to run pipelines.");
-                    renderer.interaction_break();
-                    continue;
-                }
-
                 renderer.echo_input(&input);
                 let options = PipelineOptions {
                     request: request.clone(),
@@ -200,6 +200,7 @@ fn run_interactive_session(project_root: &std::path::Path, signal: ShutdownSigna
                     dry_run: false,
                     provider_override: None,
                     resume_run_id: None,
+                    profile_override: None,
                 };
 
                 let pipeline_signal = signal.clone_signal();

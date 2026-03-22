@@ -20,8 +20,16 @@ const COMMANDS: &[(&str, &str)] = &[
 const LINES_BELOW_CURSOR: u16 = 2;
 
 // Kora brand purple
-const KORA_PURPLE: Color = Color::Rgb { r: 108, g: 92, b: 231 };
-const DIM: Color = Color::Rgb { r: 130, g: 130, b: 130 };
+const KORA_PURPLE: Color = Color::Rgb {
+    r: 108,
+    g: 92,
+    b: 231,
+};
+const DIM: Color = Color::Rgb {
+    r: 130,
+    g: 130,
+    b: 130,
+};
 
 fn read_line_inner(
     stdout: &mut io::Stdout,
@@ -34,7 +42,10 @@ fn read_line_inner(
     let mut dd_visible = false;
 
     loop {
-        if let Event::Key(KeyEvent { code, modifiers, .. }) = event::read()? {
+        if let Event::Key(KeyEvent {
+            code, modifiers, ..
+        }) = event::read()?
+        {
             match code {
                 KeyCode::Enter => {
                     if dd_visible {
@@ -64,7 +75,9 @@ fn read_line_inner(
                 }
                 KeyCode::Down if dd_visible => {
                     let m = get_matches(input);
-                    if dd_sel + 1 < m.len() { dd_sel += 1; }
+                    if dd_sel + 1 < m.len() {
+                        dd_sel += 1;
+                    }
                     show_dropdown(stdout, input, dd_sel)?;
                 }
                 KeyCode::Esc => {
@@ -78,12 +91,16 @@ fn read_line_inner(
                     }
                 }
                 KeyCode::Char('c') if modifiers.contains(KeyModifiers::CONTROL) => {
-                    if dd_visible { hide_dropdown(stdout, status_line)?; }
+                    if dd_visible {
+                        hide_dropdown(stdout, status_line)?;
+                    }
                     input.clear();
                     return Ok(());
                 }
                 KeyCode::Char('d') if modifiers.contains(KeyModifiers::CONTROL) => {
-                    if dd_visible { hide_dropdown(stdout, status_line)?; }
+                    if dd_visible {
+                        hide_dropdown(stdout, status_line)?;
+                    }
                     input.clear();
                     return Ok(());
                 }
@@ -132,7 +149,10 @@ fn read_line_inner(
                 }
                 KeyCode::End => {
                     *cursor_pos = input.len();
-                    execute!(*stdout, cursor::MoveToColumn(prompt_col + input.len() as u16))?;
+                    execute!(
+                        *stdout,
+                        cursor::MoveToColumn(prompt_col + input.len() as u16)
+                    )?;
                     stdout.flush()?;
                 }
                 _ => {}
@@ -145,7 +165,11 @@ fn get_matches(input: &str) -> Vec<(&'static str, &'static str)> {
     if !input.starts_with('/') || input.contains(' ') {
         return vec![];
     }
-    COMMANDS.iter().filter(|(cmd, _)| cmd.starts_with(input)).copied().collect()
+    COMMANDS
+        .iter()
+        .filter(|(cmd, _)| cmd.starts_with(input))
+        .copied()
+        .collect()
 }
 
 /// Show or hide dropdown based on current input.
@@ -170,10 +194,16 @@ fn refresh_dropdown(
 /// Draw dropdown replacing the status bar. Uses MoveDown/MoveUp (no SavePosition).
 fn show_dropdown(stdout: &mut io::Stdout, input: &str, sel: usize) -> io::Result<()> {
     let m = get_matches(input);
-    if m.is_empty() { return Ok(()); }
+    if m.is_empty() {
+        return Ok(());
+    }
 
     // Move from input line down past bottom border to status bar area
-    execute!(*stdout, cursor::MoveDown(LINES_BELOW_CURSOR), cursor::MoveToColumn(0))?;
+    execute!(
+        *stdout,
+        cursor::MoveDown(LINES_BELOW_CURSOR),
+        cursor::MoveToColumn(0)
+    )?;
     execute!(*stdout, Clear(ClearType::FromCursorDown))?;
 
     for (i, (cmd, desc)) in m.iter().enumerate() {
@@ -181,14 +211,23 @@ fn show_dropdown(stdout: &mut io::Stdout, input: &str, sel: usize) -> io::Result
             execute!(*stdout, Print("\r\n"), cursor::MoveToColumn(0))?;
         }
         if i == sel {
-            execute!(*stdout,
-                Print("  "), SetForegroundColor(KORA_PURPLE), Print("▸ "),
-                SetForegroundColor(Color::White), Print(format!("{:<16}", cmd)),
-                SetForegroundColor(DIM), Print(desc), ResetColor,
+            execute!(
+                *stdout,
+                Print("  "),
+                SetForegroundColor(KORA_PURPLE),
+                Print("▸ "),
+                SetForegroundColor(Color::White),
+                Print(format!("{:<16}", cmd)),
+                SetForegroundColor(DIM),
+                Print(desc),
+                ResetColor,
             )?;
         } else {
-            execute!(*stdout,
-                SetForegroundColor(DIM), Print(format!("    {:<16}{}", cmd, desc)), ResetColor,
+            execute!(
+                *stdout,
+                SetForegroundColor(DIM),
+                Print(format!("    {:<16}{}", cmd, desc)),
+                ResetColor,
             )?;
         }
     }
@@ -196,7 +235,11 @@ fn show_dropdown(stdout: &mut io::Stdout, input: &str, sel: usize) -> io::Result
     // Move back up and restore column to cursor position in input
     let up = LINES_BELOW_CURSOR as usize + m.len() - 1;
     let input_col = 6 + input.len() as u16; // prompt_col + input length
-    execute!(*stdout, cursor::MoveUp(up as u16), cursor::MoveToColumn(input_col))?;
+    execute!(
+        *stdout,
+        cursor::MoveUp(up as u16),
+        cursor::MoveToColumn(input_col)
+    )?;
     stdout.flush()
 }
 
@@ -204,10 +247,18 @@ fn show_dropdown(stdout: &mut io::Stdout, input: &str, sel: usize) -> io::Result
 fn hide_dropdown(stdout: &mut io::Stdout, status_line: &str) -> io::Result<()> {
     // Get current column so we can restore it
     let (col, _) = cursor::position()?;
-    execute!(*stdout, cursor::MoveDown(LINES_BELOW_CURSOR), cursor::MoveToColumn(0))?;
+    execute!(
+        *stdout,
+        cursor::MoveDown(LINES_BELOW_CURSOR),
+        cursor::MoveToColumn(0)
+    )?;
     execute!(*stdout, Clear(ClearType::FromCursorDown))?;
     execute!(*stdout, Print(status_line))?;
-    execute!(*stdout, cursor::MoveUp(LINES_BELOW_CURSOR), cursor::MoveToColumn(col))?;
+    execute!(
+        *stdout,
+        cursor::MoveUp(LINES_BELOW_CURSOR),
+        cursor::MoveToColumn(col)
+    )?;
     stdout.flush()
 }
 
@@ -249,7 +300,11 @@ pub fn read_user_input(status: &PromptStatus) -> io::Result<String> {
     let checkpoint_str = if status.checkpoints == 0 {
         "no checkpoints".to_string()
     } else {
-        format!("{} checkpoint{}", status.checkpoints, if status.checkpoints == 1 { "" } else { "s" })
+        format!(
+            "{} checkpoint{}",
+            status.checkpoints,
+            if status.checkpoints == 1 { "" } else { "s" }
+        )
     };
 
     let bar = "─".repeat(box_width());
@@ -261,21 +316,43 @@ pub fn read_user_input(status: &PromptStatus) -> io::Result<String> {
     );
 
     // Line 1: top border
-    execute!(stdout, SetForegroundColor(KORA_PURPLE), Print(format!("  ╭{}\r\n", bar)), ResetColor)?;
+    execute!(
+        stdout,
+        SetForegroundColor(KORA_PURPLE),
+        Print(format!("  ╭{}\r\n", bar)),
+        ResetColor
+    )?;
     // Line 2: input line
-    execute!(stdout, SetForegroundColor(KORA_PURPLE), Print("  │ ❯ "), ResetColor, Print("\r\n"))?;
+    execute!(
+        stdout,
+        SetForegroundColor(KORA_PURPLE),
+        Print("  │ ❯ "),
+        ResetColor,
+        Print("\r\n")
+    )?;
     // Line 3: bottom border
-    execute!(stdout, SetForegroundColor(KORA_PURPLE), Print(format!("  ╰{}\r\n", bar)), ResetColor)?;
+    execute!(
+        stdout,
+        SetForegroundColor(KORA_PURPLE),
+        Print(format!("  ╰{}\r\n", bar)),
+        ResetColor
+    )?;
     // Line 4: status bar
     execute!(
         stdout,
         Print("  "),
-        SetForegroundColor(DIM), Print("Preset: "),
-        SetForegroundColor(Color::Cyan), Print(&status.preset),
-        SetForegroundColor(DIM), Print(" · Branch: "),
-        SetForegroundColor(Color::Green), Print(&status.branch),
-        SetForegroundColor(DIM), Print(" · "),
-        SetForegroundColor(Color::Yellow), Print(&checkpoint_str),
+        SetForegroundColor(DIM),
+        Print("Preset: "),
+        SetForegroundColor(Color::Cyan),
+        Print(&status.preset),
+        SetForegroundColor(DIM),
+        Print(" · Branch: "),
+        SetForegroundColor(Color::Green),
+        Print(&status.branch),
+        SetForegroundColor(DIM),
+        Print(" · "),
+        SetForegroundColor(Color::Yellow),
+        Print(&checkpoint_str),
         ResetColor,
     )?;
 
@@ -288,7 +365,13 @@ pub fn read_user_input(status: &PromptStatus) -> io::Result<String> {
     let prompt_col: u16 = 6;
 
     terminal::enable_raw_mode()?;
-    let result = read_line_inner(&mut stdout, &mut input, &mut cursor_pos, prompt_col, &status_line);
+    let result = read_line_inner(
+        &mut stdout,
+        &mut input,
+        &mut cursor_pos,
+        prompt_col,
+        &status_line,
+    );
     terminal::disable_raw_mode()?;
 
     result?;
@@ -302,7 +385,12 @@ pub fn read_user_input(status: &PromptStatus) -> io::Result<String> {
 /// Erase the last prompt area.
 pub fn clear_last_input() -> io::Result<()> {
     let mut stdout = io::stdout();
-    execute!(stdout, cursor::MoveUp(PROMPT_LINES), cursor::MoveToColumn(0), Clear(ClearType::FromCursorDown))?;
+    execute!(
+        stdout,
+        cursor::MoveUp(PROMPT_LINES),
+        cursor::MoveToColumn(0),
+        Clear(ClearType::FromCursorDown)
+    )?;
     Ok(())
 }
 

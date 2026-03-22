@@ -51,6 +51,7 @@ pub fn run_resume(project_root: &Path) -> Result<()> {
         dry_run: false,
         provider_override: None,
         resume_run_id: Some(selected_run.id.clone()),
+        profile_override: selected_run.pipeline_profile,
     };
 
     let rt = tokio::runtime::Runtime::new()?;

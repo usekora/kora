@@ -11,6 +11,7 @@ fn make_options(yolo: bool, careful: bool) -> PipelineOptions {
         dry_run: false,
         provider_override: None,
         resume_run_id: None,
+        profile_override: None,
     }
 }
 

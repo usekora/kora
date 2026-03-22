@@ -2,13 +2,16 @@ use anyhow::{Context as AnyhowContext, Result};
 use std::path::Path;
 use std::time::Duration;
 
+use crate::agent::output_parser;
 use crate::config::Config;
 use crate::git::worktree::WorktreeManager;
 use crate::pipeline::{
     context, implementation, merge, planner, researcher, review_loop, test_architect, validation,
 };
 use crate::provider::{self, Provider};
-use crate::state::{checkpoint_for_stage, Checkpoint, RunDirectory, RunState, Stage};
+use crate::state::{
+    checkpoint_for_stage, Checkpoint, PipelineProfile, RunDirectory, RunState, Stage,
+};
 use crate::terminal::dashboard::Dashboard;
 use crate::terminal::Renderer;
 
@@ -19,6 +22,7 @@ pub struct PipelineOptions {
     pub dry_run: bool,
     pub provider_override: Option<String>,
     pub resume_run_id: Option<String>,
+    pub profile_override: Option<PipelineProfile>,
 }
 
 pub async fn run_pipeline(
@@ -42,8 +46,11 @@ pub async fn run_pipeline(
         let mut run_state = RunState::load(&runs_dir, resume_id)?;
         let run_dir = RunDirectory::new(&runs_dir, &run_state.id);
 
+        let effective_config =
+            apply_profile_to_config(config, run_state.pipeline_profile.unwrap_or_default());
+
         resume_pipeline(
-            config,
+            &effective_config,
             &mut run_state,
             &run_dir,
             &runs_dir,
@@ -94,67 +101,82 @@ pub async fn run_pipeline(
 
     renderer.stage_complete("researcher", 0);
 
-    if should_checkpoint(&Stage::Reviewing, &checkpoints)
-        && !renderer.checkpoint_prompt("review loop")
-    {
-        run_state.set_error("user declined at researcher checkpoint");
+    // Determine pipeline profile: CLI override > researcher classification > Standard
+    let profile = determine_pipeline_profile(&options, &run_dir);
+    run_state.pipeline_profile = Some(profile);
+    run_state.save(&runs_dir)?;
+    renderer.info(&format!("pipeline profile: {}", profile));
+
+    // Build effective config with agent flags adjusted for the profile
+    let effective_config = apply_profile_to_config(config, profile);
+
+    if options.dry_run {
+        renderer.info("dry run mode -- stopping after research");
+        run_state.advance(Stage::Complete);
         run_state.save(&runs_dir)?;
-        renderer.info("run cancelled by user at researcher checkpoint");
         return Ok(());
     }
 
-    let outcome = review_loop::run_review_loop(
-        config,
+    // Review loop — only for Standard and SecurityCritical profiles
+    if profile.has_review_loop() {
+        if should_checkpoint(&Stage::Reviewing, &checkpoints)
+            && !renderer.checkpoint_prompt("review loop")
+        {
+            run_state.set_error("user declined at researcher checkpoint");
+            run_state.save(&runs_dir)?;
+            renderer.info("run cancelled by user at researcher checkpoint");
+            return Ok(());
+        }
+
+        let outcome = review_loop::run_review_loop(
+            &effective_config,
+            &mut run_state,
+            &run_dir,
+            &runs_dir,
+            project_root,
+            renderer,
+            &get_provider,
+        )
+        .await?;
+
+        match outcome {
+            review_loop::ReviewOutcome::Approved => {
+                renderer.info("plan approved by review loop");
+            }
+            review_loop::ReviewOutcome::Escalated { iteration, reason } => {
+                renderer.escalation(&format!(
+                    "review loop escalated after {} iterations: {}",
+                    iteration, reason
+                ));
+                run_state.set_error(&reason);
+                run_state.save(&runs_dir)?;
+                return Ok(());
+            }
+        }
+    } else {
+        renderer.info(&format!("skipping review loop (profile: {})", profile));
+    }
+
+    if should_checkpoint(&Stage::Planning, &checkpoints) && !renderer.checkpoint_prompt("planning")
+    {
+        run_state.set_error("user declined at review loop checkpoint");
+        run_state.save(&runs_dir)?;
+        renderer.info("run cancelled by user at review loop checkpoint");
+        return Ok(());
+    }
+
+    run_planning_and_implementation(
+        &effective_config,
         &mut run_state,
         &run_dir,
         &runs_dir,
         project_root,
         renderer,
+        &checkpoints,
         &get_provider,
+        options.yolo,
     )
     .await?;
-
-    match outcome {
-        review_loop::ReviewOutcome::Approved => {
-            renderer.info("plan approved by review loop");
-
-            if should_checkpoint(&Stage::Planning, &checkpoints)
-                && !renderer.checkpoint_prompt("planning")
-            {
-                run_state.set_error("user declined at review loop checkpoint");
-                run_state.save(&runs_dir)?;
-                renderer.info("run cancelled by user at review loop checkpoint");
-                return Ok(());
-            }
-
-            if options.dry_run {
-                renderer.info("dry run mode -- stopping after review loop");
-                run_state.advance(Stage::Complete);
-                run_state.save(&runs_dir)?;
-                return Ok(());
-            }
-
-            run_planning_and_implementation(
-                config,
-                &mut run_state,
-                &run_dir,
-                &runs_dir,
-                project_root,
-                renderer,
-                &checkpoints,
-                &get_provider,
-                options.yolo,
-            )
-            .await?;
-        }
-        review_loop::ReviewOutcome::Escalated { iteration, reason } => {
-            renderer.escalation(&format!(
-                "review loop escalated after {} iterations: {}",
-                iteration, reason
-            ));
-            run_state.set_error(&reason);
-        }
-    }
 
     run_state.save(&runs_dir)?;
 
@@ -164,6 +186,100 @@ pub async fn run_pipeline(
     }
 
     Ok(())
+}
+
+fn determine_pipeline_profile(
+    options: &PipelineOptions,
+    run_dir: &RunDirectory,
+) -> PipelineProfile {
+    // CLI override takes precedence
+    if let Some(profile) = options.profile_override {
+        return profile;
+    }
+
+    // Try to parse from researcher output
+    let plan_path = run_dir.context_dir().join("researcher-plan.md");
+    if let Ok(content) = std::fs::read_to_string(&plan_path) {
+        if let Some(profile) = output_parser::parse_classification(&content) {
+            return profile;
+        }
+    }
+
+    // Default to Standard
+    PipelineProfile::Standard
+}
+
+/// Clone config and adjust agent enabled flags based on the pipeline profile.
+fn apply_profile_to_config(config: &Config, profile: PipelineProfile) -> Config {
+    let mut c = config.clone();
+    match profile {
+        PipelineProfile::Trivial => {
+            c.agents.plan_reviewer.enabled = false;
+            c.agents.plan_security_auditor.enabled = false;
+            c.agents.judge.enabled = false;
+            c.agents.test_architect.enabled = false;
+            c.agents.code_reviewer.enabled = false;
+            c.agents.code_security_auditor.enabled = false;
+            c.agents.validator.enabled = false;
+        }
+        PipelineProfile::Simple => {
+            c.agents.plan_reviewer.enabled = false;
+            c.agents.plan_security_auditor.enabled = false;
+            c.agents.judge.enabled = false;
+            c.agents.test_architect.enabled = false;
+            c.agents.code_security_auditor.enabled = false;
+        }
+        PipelineProfile::Standard => {
+            // Keep user's config as-is
+        }
+        PipelineProfile::SecurityCritical => {
+            // Force-enable all security agents regardless of user config
+            c.agents.plan_reviewer.enabled = true;
+            c.agents.plan_security_auditor.enabled = true;
+            c.agents.judge.enabled = true;
+            c.agents.test_architect.enabled = true;
+            c.agents.code_reviewer.enabled = true;
+            c.agents.code_security_auditor.enabled = true;
+            c.agents.validator.enabled = true;
+        }
+    }
+    c
+}
+
+fn synthetic_trivial_breakdown(request: &str) -> output_parser::TaskBreakdown {
+    let title: String = request.chars().take(80).collect();
+    output_parser::TaskBreakdown {
+        tasks: vec![output_parser::Task {
+            id: "task-1".to_string(),
+            title,
+            description: request.to_string(),
+            files: output_parser::TaskFiles {
+                create: vec![],
+                modify: vec![],
+                delete: vec![],
+            },
+            depends_on: vec![],
+            estimated_complexity: "trivial".to_string(),
+            conflict_risk: vec![],
+        }],
+        branch_strategy: "single".to_string(),
+        merge_order: vec!["task-1".to_string()],
+        critical_path: vec!["task-1".to_string()],
+        parallelism_summary: "1 task, no parallelism".to_string(),
+    }
+}
+
+fn empty_test_strategy() -> output_parser::TestStrategy {
+    output_parser::TestStrategy {
+        per_task: std::collections::HashMap::new(),
+        post_merge: output_parser::PostMergeTests {
+            integration_tests: vec![],
+        },
+        testing_patterns: output_parser::TestingPatterns {
+            framework: String::new(),
+            conventions: String::new(),
+        },
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -179,39 +295,49 @@ async fn run_planning_and_implementation(
     auto_merge: bool,
 ) -> Result<()> {
     let no_flags: Vec<String> = vec![];
+    let profile = run_state.pipeline_profile.unwrap_or_default();
 
-    renderer.stage_header("planner", "decomposing");
+    // Planner — skip for Trivial, use synthetic single-task breakdown
     run_state.advance(Stage::Planning);
     run_state.save(runs_dir)?;
 
-    let planner_provider =
-        get_provider(&config.agents.planner.provider).context("no provider for planner")?;
-    let planner_prompt = context::build_planner_prompt(
-        &runs_dir.join(&run_state.id),
-        &run_state.request,
-        project_root,
-        config.agents.planner.custom_instructions.as_deref(),
-    )?;
+    let breakdown = if profile.has_planner() {
+        renderer.stage_header("planner", "decomposing");
 
-    let breakdown = planner::run_planner(
-        planner_provider.as_ref(),
-        &planner_prompt.prompt,
-        project_root,
-        run_dir,
-        &no_flags,
-        config.agents.planner.timeout_seconds,
-    )
-    .await?;
+        let planner_provider =
+            get_provider(&config.agents.planner.provider).context("no provider for planner")?;
+        let planner_prompt = context::build_planner_prompt(
+            &runs_dir.join(&run_state.id),
+            &run_state.request,
+            project_root,
+            config.agents.planner.custom_instructions.as_deref(),
+        )?;
 
-    renderer.stage_complete("planner", 0);
-    renderer.info(&format!(
-        "{} tasks, strategy: {}, critical path: {}",
-        breakdown.tasks.len(),
-        breakdown.branch_strategy,
-        breakdown.critical_path.join(" -> "),
-    ));
+        let bd = planner::run_planner(
+            planner_provider.as_ref(),
+            &planner_prompt.prompt,
+            project_root,
+            run_dir,
+            &no_flags,
+            config.agents.planner.timeout_seconds,
+        )
+        .await?;
 
-    let test_strategy = if config.agents.test_architect.enabled {
+        renderer.stage_complete("planner", 0);
+        renderer.info(&format!(
+            "{} tasks, strategy: {}, critical path: {}",
+            bd.tasks.len(),
+            bd.branch_strategy,
+            bd.critical_path.join(" -> "),
+        ));
+        bd
+    } else {
+        renderer.info("skipping planner (trivial profile), using single-task breakdown");
+        synthetic_trivial_breakdown(&run_state.request)
+    };
+
+    // Test Architect — skip for Trivial and Simple
+    let test_strategy = if config.agents.test_architect.enabled && profile.has_test_architect() {
         renderer.stage_header("test architect", "designing tests");
         run_state.advance(Stage::TestArchitecting);
         run_state.save(runs_dir)?;
@@ -238,19 +364,14 @@ async fn run_planning_and_implementation(
         renderer.stage_complete("test architect", 0);
         strategy
     } else {
-        renderer.info("test architect disabled, skipping test planning");
+        if !profile.has_test_architect() {
+            renderer.info("skipping test architect (profile)");
+        } else {
+            renderer.info("test architect disabled, skipping test planning");
+        }
         run_state.advance(Stage::TestArchitecting);
         run_state.save(runs_dir)?;
-        crate::agent::output_parser::TestStrategy {
-            per_task: std::collections::HashMap::new(),
-            post_merge: crate::agent::output_parser::PostMergeTests {
-                integration_tests: vec![],
-            },
-            testing_patterns: crate::agent::output_parser::TestingPatterns {
-                framework: String::new(),
-                conventions: String::new(),
-            },
-        }
+        empty_test_strategy()
     };
 
     if should_checkpoint(&Stage::Implementing, checkpoints)

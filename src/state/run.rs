@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::path::Path;
 use uuid::Uuid;
 
-use super::Stage;
+use super::{PipelineProfile, Stage};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RunState {
@@ -18,6 +18,8 @@ pub struct RunState {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub error: Option<String>,
+    #[serde(default)]
+    pub pipeline_profile: Option<PipelineProfile>,
 }
 
 impl RunState {
@@ -36,6 +38,7 @@ impl RunState {
             created_at: now,
             updated_at: now,
             error: None,
+            pipeline_profile: None,
         }
     }
 

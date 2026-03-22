@@ -60,23 +60,16 @@ impl ProviderKind {
 
     pub fn available_models(&self) -> Vec<&'static str> {
         match self {
-            ProviderKind::Claude => vec![
-                "opus-4-6-1m",
-                "opus-4-6",
-                "sonnet-4-6",
-                "haiku-4-5",
-            ],
+            ProviderKind::Claude => vec!["opus-4-6-1m", "opus-4-6", "sonnet-4-6", "haiku-4-5"],
             ProviderKind::Codex => vec![
                 "gpt-5.4",
                 "gpt-5.3-codex-spark",
                 "gpt-5.3-codex",
                 "gpt-5.2-codex",
             ],
-            ProviderKind::Gemini => vec![
-                "gemini-3.1-pro",
-                "gemini-3-flash",
-                "gemini-3.1-flash-lite",
-            ],
+            ProviderKind::Gemini => {
+                vec!["gemini-3.1-pro", "gemini-3-flash", "gemini-3.1-flash-lite"]
+            }
         }
     }
 

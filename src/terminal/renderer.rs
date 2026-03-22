@@ -417,6 +417,65 @@ impl Renderer {
         )
         .ok();
     }
+
+    /// Show a blocking screen when no AI CLI tools are installed.
+    /// Waits for Esc or any key to exit.
+    pub fn no_providers_screen(&mut self) {
+        use crossterm::event::{self, Event, KeyCode, KeyEvent};
+
+        let dim = Color::Rgb { r: 130, g: 130, b: 130 };
+        let yellow = Color::Yellow;
+        let kora_purple = Color::Rgb { r: 108, g: 92, b: 231 };
+
+        execute!(
+            self.stdout,
+            Print("\r\n"),
+            SetForegroundColor(yellow),
+            Print("  ⚠ No AI CLI tools detected.\r\n"),
+            ResetColor,
+            Print("\r\n"),
+            SetForegroundColor(dim),
+            Print("  Kora needs at least one AI coding agent installed:\r\n"),
+            Print("\r\n"),
+            Print("    • "),
+            SetForegroundColor(Color::Cyan),
+            Print("claude"),
+            SetForegroundColor(dim),
+            Print("   https://docs.anthropic.com/en/docs/claude-code\r\n"),
+            Print("    • "),
+            SetForegroundColor(Color::Cyan),
+            Print("codex"),
+            SetForegroundColor(dim),
+            Print("    https://github.com/openai/codex\r\n"),
+            Print("    • "),
+            SetForegroundColor(Color::Cyan),
+            Print("gemini"),
+            SetForegroundColor(dim),
+            Print("   https://github.com/google-gemini/gemini-cli\r\n"),
+            Print("\r\n"),
+            Print("  Install one of the above, then restart kora.\r\n"),
+            Print("\r\n"),
+            SetForegroundColor(kora_purple),
+            Print("  Esc"),
+            SetForegroundColor(dim),
+            Print(" to exit"),
+            ResetColor,
+        )
+        .ok();
+        self.stdout.flush().ok();
+
+        // Wait for Esc or any key
+        crossterm::terminal::enable_raw_mode().ok();
+        loop {
+            if let Ok(Event::Key(KeyEvent { code, .. })) = event::read() {
+                match code {
+                    KeyCode::Esc | KeyCode::Char('q') | KeyCode::Enter => break,
+                    _ => break,
+                }
+            }
+        }
+        crossterm::terminal::disable_raw_mode().ok();
+    }
 }
 
 impl Default for Renderer {

@@ -22,6 +22,11 @@ pub enum Commands {
         #[arg(short, long)]
         provider: Option<String>,
 
+        /// Pipeline profile: trivial, simple, standard, security-critical.
+        /// If omitted, the researcher auto-classifies the request.
+        #[arg(long)]
+        profile: Option<String>,
+
         /// No checkpoints, full autopilot
         #[arg(long)]
         yolo: bool,

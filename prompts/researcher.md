@@ -75,6 +75,28 @@ content that wasn't flagged — only add or modify what the findings require.
 Clearly mark what changed in the revision with a "### Changes in Revision N" section
 at the top listing each finding addressed and how.
 
+## Complexity Classification
+
+Before writing your plan, classify the request's complexity. This determines which
+pipeline stages will execute. Include this marker at the TOP of your `context/researcher-plan.md`
+and in your stdout output (before the PLAN markers):
+
+<!-- CLASSIFICATION -->
+[one of: trivial, simple, standard, security-critical]
+<!-- /CLASSIFICATION -->
+
+**Classification guide:**
+- **trivial** — Typo fix, rename, config change, single-line edit, documentation-only.
+  No architectural decisions, no new logic, no risk.
+- **simple** — Bug fix, small self-contained feature, minor refactor. Touches a few files,
+  clear approach, low risk. Does not need plan review or test architecture.
+- **standard** — Feature with multiple components, cross-cutting changes, meaningful
+  complexity. Benefits from plan review, test design, and full quality gates.
+- **security-critical** — Touches authentication, authorization, payments, PII, secrets,
+  encryption, or access control. Requires full security auditing at every stage.
+
+When in doubt, classify one level higher (e.g., choose "standard" over "simple").
+
 ## Output Rules
 
 - Be thorough but concise. Every sentence should carry information.
@@ -86,8 +108,11 @@ at the top listing each finding addressed and how.
   1. `context/codebase-summary.md` — your analysis of the codebase (structure,
      patterns, conventions, relevant files). Written early during exploration.
   2. `context/researcher-plan.md` — your final implementation plan. Written when
-     the user approves the direction.
+     the user approves the direction. Must include the CLASSIFICATION marker at the top.
 - Additionally, wrap your final plan in your stdout output with markers:
+  <!-- CLASSIFICATION -->
+  [your classification]
+  <!-- /CLASSIFICATION -->
   <!-- PLAN -->
   [your complete plan here]
   <!-- /PLAN -->

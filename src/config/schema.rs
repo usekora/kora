@@ -43,7 +43,7 @@ impl PipelinePreset {
             PipelinePreset::Quality => "\u{25a0}\u{25a0}\u{25a0}\u{25a0}\u{25a0}",
             PipelinePreset::Balanced => "\u{25a0}\u{25a0}\u{25a0}\u{25a1}\u{25a1}",
             PipelinePreset::Speed => "\u{25a0}\u{25a0}\u{25a1}\u{25a1}\u{25a1}",
-            PipelinePreset::Custom => "\u{25a0}\u{25a0}\u{25a0}\u{25a1}\u{25a1}",
+            PipelinePreset::Custom => "",
         }
     }
 
@@ -53,7 +53,7 @@ impl PipelinePreset {
             PipelinePreset::Quality => "\u{25a0}\u{25a0}\u{25a1}\u{25a1}\u{25a1}",
             PipelinePreset::Balanced => "\u{25a0}\u{25a0}\u{25a0}\u{25a1}\u{25a1}",
             PipelinePreset::Speed => "\u{25a0}\u{25a0}\u{25a0}\u{25a0}\u{25a0}",
-            PipelinePreset::Custom => "\u{25a0}\u{25a0}\u{25a0}\u{25a1}\u{25a1}",
+            PipelinePreset::Custom => "",
         }
     }
 
@@ -61,26 +61,40 @@ impl PipelinePreset {
         match self {
             PipelinePreset::Quality => {
                 let mut parts = Vec::new();
-                if has_claude { parts.push("Claude for planning & implementation"); }
-                if has_gemini { parts.push("Gemini for research"); }
-                if has_codex { parts.push("Codex for test & validation"); }
-                if parts.is_empty() { return "Best provider for each role".to_string(); }
+                if has_claude {
+                    parts.push("Claude for planning & implementation");
+                }
+                if has_gemini {
+                    parts.push("Gemini for research");
+                }
+                if has_codex {
+                    parts.push("Codex for test & validation");
+                }
+                if parts.is_empty() {
+                    return "Best provider for each role".to_string();
+                }
                 parts.join(", ")
             }
             PipelinePreset::Balanced => {
                 let mut parts = Vec::new();
-                if has_claude { parts.push("Claude for core pipeline"); }
-                if has_gemini { parts.push("Gemini for research"); }
-                if has_codex { parts.push("Codex for lightweight tasks"); }
-                if parts.is_empty() { return "Good balance of quality and speed".to_string(); }
+                if has_claude {
+                    parts.push("Claude for core pipeline");
+                }
+                if has_gemini {
+                    parts.push("Gemini for research");
+                }
+                if has_codex {
+                    parts.push("Codex for lightweight tasks");
+                }
+                if parts.is_empty() {
+                    return "Good balance of quality and speed".to_string();
+                }
                 parts.join(", ")
             }
             PipelinePreset::Speed => {
                 "Fastest provider per role, skips security & test agents".to_string()
             }
-            PipelinePreset::Custom => {
-                "Per-agent provider and model control".to_string()
-            }
+            PipelinePreset::Custom => "Per-agent provider and model control".to_string(),
         }
     }
 

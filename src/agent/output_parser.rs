@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+use crate::state::PipelineProfile;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TaskBreakdown {
     pub tasks: Vec<Task>,
@@ -234,6 +236,11 @@ pub fn parse_code_security_review(text: &str) -> Option<ReviewSummary> {
 
 pub fn extract_plan(text: &str) -> Option<String> {
     extract_block(text, "<!-- PLAN -->", "<!-- /PLAN -->")
+}
+
+pub fn parse_classification(text: &str) -> Option<PipelineProfile> {
+    let block = extract_block(text, "<!-- CLASSIFICATION -->", "<!-- /CLASSIFICATION -->")?;
+    block.trim().parse().ok()
 }
 
 pub fn parse_validation(text: &str) -> Option<ValidationResult> {

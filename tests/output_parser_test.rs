@@ -1,7 +1,9 @@
 use kora::agent::output_parser::{
-    extract_json_object, extract_plan, parse_review, parse_security_review, parse_task_breakdown,
-    parse_task_result, parse_test_strategy, parse_validation, parse_verdict, TaskStatus,
+    extract_json_object, extract_plan, parse_classification, parse_review, parse_security_review,
+    parse_task_breakdown, parse_task_result, parse_test_strategy, parse_validation, parse_verdict,
+    TaskStatus,
 };
+use kora::state::PipelineProfile;
 
 #[test]
 fn test_parse_verdict_approve() {
@@ -304,4 +306,53 @@ fn test_parse_task_result_conflict() {
 fn test_parse_task_result_no_status() {
     let text = "some random text without status markers";
     assert!(parse_task_result(text).is_none());
+}
+
+// --- Classification tests ---
+
+#[test]
+fn test_parse_classification_trivial() {
+    let text = r#"
+<!-- CLASSIFICATION -->
+trivial
+<!-- /CLASSIFICATION -->
+
+<!-- PLAN -->
+Fix the typo in README.md
+<!-- /PLAN -->
+"#;
+    assert_eq!(parse_classification(text), Some(PipelineProfile::Trivial));
+}
+
+#[test]
+fn test_parse_classification_simple() {
+    let text = "<!-- CLASSIFICATION -->\nsimple\n<!-- /CLASSIFICATION -->";
+    assert_eq!(parse_classification(text), Some(PipelineProfile::Simple));
+}
+
+#[test]
+fn test_parse_classification_standard() {
+    let text = "<!-- CLASSIFICATION -->\nstandard\n<!-- /CLASSIFICATION -->";
+    assert_eq!(parse_classification(text), Some(PipelineProfile::Standard));
+}
+
+#[test]
+fn test_parse_classification_security_critical() {
+    let text = "<!-- CLASSIFICATION -->\nsecurity-critical\n<!-- /CLASSIFICATION -->";
+    assert_eq!(
+        parse_classification(text),
+        Some(PipelineProfile::SecurityCritical)
+    );
+}
+
+#[test]
+fn test_parse_classification_missing_markers() {
+    let text = "No classification here";
+    assert!(parse_classification(text).is_none());
+}
+
+#[test]
+fn test_parse_classification_unknown_value() {
+    let text = "<!-- CLASSIFICATION -->\nbanana\n<!-- /CLASSIFICATION -->";
+    assert!(parse_classification(text).is_none());
 }
