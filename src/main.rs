@@ -50,6 +50,15 @@ fn run(signal: ShutdownSignal) -> Result<()> {
                 return Ok(());
             }
 
+            if !config::has_user_config(&project_root) {
+                renderer.info(&format!(
+                    "using default configuration ({}, {} checkpoints). run `kora configure` to customize.",
+                    config.default_provider,
+                    config.checkpoints.len()
+                ));
+                renderer.text("");
+            }
+
             let options = PipelineOptions {
                 request,
                 yolo,
@@ -108,6 +117,11 @@ fn run_interactive_session(project_root: &std::path::Path, signal: ShutdownSigna
         &config.default_provider,
         config.checkpoints.len(),
     );
+
+    if !config::has_user_config(project_root) {
+        renderer.info("tip: run `kora configure` to customize provider, checkpoints, and more.");
+        renderer.text("");
+    }
 
     let mut verbosity = VerbosityState::new(config.output.default_verbosity);
     let mut last_run: Option<RunState> = None;

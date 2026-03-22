@@ -97,6 +97,10 @@ fn merge_configs(project: Config, home: Config) -> Config {
     }
 }
 
+pub fn has_user_config(project_root: &Path) -> bool {
+    home_config_path().exists() || project_config_path(project_root).exists()
+}
+
 pub fn save_home(config: &Config) -> Result<()> {
     let dir = home_dir();
     std::fs::create_dir_all(&dir)?;
