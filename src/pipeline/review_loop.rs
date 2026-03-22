@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 use std::path::Path;
+use std::time::Duration;
 
 use crate::agent::output_parser;
 use crate::config::Config;
@@ -60,9 +61,19 @@ pub async fn run_review_loop(
                 .as_deref(),
         )?;
 
+        let reviewer_timeout = Some(Duration::from_secs(config.agents.reviewer.timeout_seconds));
+        let security_timeout = Some(Duration::from_secs(
+            config.agents.security_auditor.timeout_seconds,
+        ));
+
         let (review_result, security_result) = tokio::join!(
-            reviewer_provider.run(&review_prompt.prompt, project_root, &no_flags),
-            security_provider.run(&security_prompt.prompt, project_root, &no_flags),
+            reviewer_provider.run(&review_prompt.prompt, project_root, &no_flags, reviewer_timeout),
+            security_provider.run(
+                &security_prompt.prompt,
+                project_root,
+                &no_flags,
+                security_timeout
+            ),
         );
 
         let review_output = review_result.context("reviewer failed")?;
@@ -101,8 +112,9 @@ pub async fn run_review_loop(
             config.agents.judge.custom_instructions.as_deref(),
         )?;
 
+        let judge_timeout = Some(Duration::from_secs(config.agents.judge.timeout_seconds));
         let judge_output = judge_provider
-            .run(&judge_prompt.prompt, project_root, &no_flags)
+            .run(&judge_prompt.prompt, project_root, &no_flags, judge_timeout)
             .await
             .context("judge failed")?;
 
@@ -151,6 +163,7 @@ pub async fn run_review_loop(
                         project_root,
                         run_dir,
                         &no_flags,
+                        config.agents.researcher.timeout_seconds,
                     )
                     .await?;
 

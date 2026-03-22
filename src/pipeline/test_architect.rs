@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 use std::path::Path;
+use std::time::Duration;
 
 use crate::agent::output_parser::{self, extract_json_object, TestStrategy};
 use crate::provider::Provider;
@@ -11,9 +12,15 @@ pub async fn run_test_architect(
     working_dir: &Path,
     run_dir: &RunDirectory,
     extra_flags: &[String],
+    timeout_seconds: u64,
 ) -> Result<TestStrategy> {
     let output = provider
-        .run(prompt, working_dir, extra_flags)
+        .run(
+            prompt,
+            working_dir,
+            extra_flags,
+            Some(Duration::from_secs(timeout_seconds)),
+        )
         .await
         .context("test architect agent failed")?;
 

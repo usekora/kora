@@ -1,7 +1,7 @@
-use anyhow::Result;
+use anyhow::{bail, Result};
 use std::path::Path;
 use std::process::Stdio;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use tokio::process::Command;
 
 use super::traits::{AgentOutput, InteractiveSession, Provider, ProviderKind};
@@ -49,6 +49,7 @@ impl Provider for ClaudeProvider {
         prompt: &str,
         working_dir: &Path,
         extra_flags: &[String],
+        timeout: Option<Duration>,
     ) -> Result<AgentOutput> {
         let start = Instant::now();
         let mut cmd = self.base_command(working_dir, extra_flags);
@@ -56,13 +57,27 @@ impl Provider for ClaudeProvider {
             cmd.arg(flag);
         }
         cmd.arg("-p").arg(prompt);
-        let output = cmd.output().await?;
-        let duration = start.elapsed();
+
+        let output = match timeout {
+            Some(duration) => {
+                let child = cmd
+                    .stdout(Stdio::piped())
+                    .stderr(Stdio::piped())
+                    .spawn()?;
+                match tokio::time::timeout(duration, child.wait_with_output()).await {
+                    Ok(result) => result?,
+                    Err(_) => {
+                        bail!("claude agent timed out after {}s", duration.as_secs());
+                    }
+                }
+            }
+            None => cmd.output().await?,
+        };
 
         Ok(AgentOutput {
             text: String::from_utf8_lossy(&output.stdout).to_string(),
             exit_code: output.status.code().unwrap_or(-1),
-            duration,
+            duration: start.elapsed(),
         })
     }
 

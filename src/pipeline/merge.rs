@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::path::Path;
+use std::time::Duration;
 
 use crate::config::Config;
 use crate::git::worktree::{MergeResult, WorktreeManager};
@@ -238,7 +239,14 @@ async fn attempt_conflict_resolution(
     ));
 
     let no_flags: Vec<String> = vec![];
-    let result = provider.run(&prompt, target_dir, &no_flags).await;
+    let result = provider
+        .run(
+            &prompt,
+            target_dir,
+            &no_flags,
+            Some(Duration::from_secs(300)),
+        )
+        .await;
 
     match result {
         Ok(output) => {

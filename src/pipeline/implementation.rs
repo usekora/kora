@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use anyhow::{Context as AnyhowContext, Result};
 use tokio::sync::mpsc;
@@ -267,10 +267,13 @@ impl ImplementationFleet {
         let task_id_owned = task_id.to_string();
         let no_flags: Vec<String> = vec![];
         let wt_path = worktree_path;
+        let timeout = Some(Duration::from_secs(
+            self.config.agents.implementor.timeout_seconds,
+        ));
 
         tokio::spawn(async move {
             let start = Instant::now();
-            let result = provider.run(&prompt, &wt_path, &no_flags).await;
+            let result = provider.run(&prompt, &wt_path, &no_flags, timeout).await;
             let duration = start.elapsed().as_secs();
 
             match result {

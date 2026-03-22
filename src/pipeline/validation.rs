@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 use crate::agent::output_parser::{self, ValidationResult};
 use crate::provider::Provider;
@@ -17,9 +18,15 @@ pub async fn run_validator(
     working_dir: &Path,
     run_dir: &RunDirectory,
     extra_flags: &[String],
+    timeout_seconds: u64,
 ) -> Result<ValidatorOutput> {
     let output = provider
-        .run(prompt, working_dir, extra_flags)
+        .run(
+            prompt,
+            working_dir,
+            extra_flags,
+            Some(Duration::from_secs(timeout_seconds)),
+        )
         .await
         .context("validator agent failed")?;
 

@@ -1,5 +1,6 @@
 use anyhow::{Context as AnyhowContext, Result};
 use std::path::Path;
+use std::time::Duration;
 
 use crate::config::Config;
 use crate::git::worktree::WorktreeManager;
@@ -190,6 +191,7 @@ async fn run_planning_and_implementation(
         project_root,
         run_dir,
         &no_flags,
+        config.agents.planner.timeout_seconds,
     )
     .await?;
 
@@ -220,6 +222,7 @@ async fn run_planning_and_implementation(
         project_root,
         run_dir,
         &no_flags,
+        config.agents.test_architect.timeout_seconds,
     )
     .await?;
 
@@ -349,6 +352,7 @@ async fn run_validation_and_merge(
             project_root,
             run_dir,
             &no_flags,
+            config.agents.validator.timeout_seconds,
         )
         .await?;
 
@@ -401,8 +405,9 @@ async fn run_validation_and_merge(
             config.agents.implementor.custom_instructions.as_deref(),
         )?;
 
+        let fix_timeout = Some(Duration::from_secs(config.agents.implementor.timeout_seconds));
         let fix_output = fix_provider
-            .run(&fix_prompt.prompt, project_root, &no_flags)
+            .run(&fix_prompt.prompt, project_root, &no_flags, fix_timeout)
             .await
             .context("fixer agent failed")?;
 

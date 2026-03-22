@@ -1,10 +1,11 @@
 use anyhow::Result;
 use std::path::Path;
+use std::time::Duration;
 
 pub struct AgentOutput {
     pub text: String,
     pub exit_code: i32,
-    pub duration: std::time::Duration,
+    pub duration: Duration,
 }
 
 pub struct InteractiveSession {
@@ -22,6 +23,7 @@ pub trait Provider: Send + Sync {
         prompt: &str,
         working_dir: &Path,
         extra_flags: &[String],
+        timeout: Option<Duration>,
     ) -> Result<AgentOutput>;
 
     async fn run_interactive(
