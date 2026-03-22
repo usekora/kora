@@ -45,9 +45,10 @@ graph LR
     G -->|specs| H(Implementors)
     H -->|code| I(Code Reviewer)
     H -->|code| K(Code Security Auditor)
-    I -->|findings| H
-    K -->|findings| H
-    H -->|done| J(Validator)
+    I -->|findings| M(Code Judge)
+    K -->|findings| M
+    M -->|valid| H
+    M -->|approve| J(Validator)
     J -->|done| L[Your branches]
 
     style A fill:#1a1a2e,stroke:#e94560,color:#fff
@@ -62,6 +63,7 @@ graph LR
     style J fill:#16213e,stroke:#0f3460,color:#fff
     style K fill:#16213e,stroke:#0f3460,color:#fff
     style L fill:#1a1a2e,stroke:#e94560,color:#fff
+    style M fill:#16213e,stroke:#0f3460,color:#fff
 ```
 
 **Ten agents, one pipeline:**
@@ -83,7 +85,7 @@ graph LR
 
 - **Provider-agnostic** — uses Claude, Codex, or Gemini CLI tools. No API keys needed.
 - **Parallel execution** — implementors work simultaneously in isolated git worktrees
-- **Quality loop** — reviewer + security auditor + judge iterate until the plan is solid
+- **Quality loops** — reviewer + security auditor + judge iterate on both the plan and the code until issues are resolved
 - **Resumable** — all state saved to disk. `kora resume` picks up where you left off
 - **Configurable checkpoints** — approve at every stage, or `--yolo` for full autopilot
 - **Three verbosity modes** — press `Tab` to toggle between focused, detailed, and verbose
@@ -208,6 +210,33 @@ kora clean        # Clean up old run data
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+  code review ······································ T1 ●
+
+    code reviewer ·································· analyzing diff ●
+    code security auditor ·························· analyzing diff ●
+
+      ▲ HIGH   SQL injection in query builder
+      · LOW    Could use more descriptive variable name — dismissed
+
+    code judge ····································· evaluating ●
+
+      ▲ SQL injection             accepted
+      · Variable name             dismissed
+
+    implementor ···································· fixing T1 ●
+
+      ✓ Fixed SQL injection in query builder
+
+  code review ······································ T1 iteration 2 ●
+
+    code reviewer ·································· analyzing diff ●
+    code security auditor ·························· analyzing diff ●
+    code judge ····································· evaluating ●
+
+      ✓ all findings dismissed
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
   ✓ implementation complete                     4 tasks · 1m 23s
 
   ? What would you like to do with the changes?
@@ -327,6 +356,8 @@ Researcher writes plan → Orchestrator injects into Reviewer prompt
 Reviewer writes findings → Orchestrator injects into Judge prompt
 Judge approves → Orchestrator injects plan into Planner prompt
 Planner writes tasks → Orchestrator injects into each Implementor prompt
+Implementor writes code → Code Reviewer + Code Security Auditor review the diff
+Code findings → Judge evaluates → valid issues sent back to Implementor for fixes
 ```
 
 A Claude researcher can hand off to a Codex reviewer seamlessly because the handoff is a file, not a conversation.

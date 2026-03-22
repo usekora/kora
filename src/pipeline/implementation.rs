@@ -286,6 +286,10 @@ impl ImplementationFleet {
             .code_security_auditor
             .custom_instructions
             .clone();
+        let judge_provider = get_provider(&self.config.agents.judge.provider);
+        let judge_timeout = Duration::from_secs(self.config.agents.judge.timeout_seconds);
+        let judge_custom = self.config.agents.judge.custom_instructions.clone();
+        let max_review_iterations = self.config.review_loop.max_iterations;
 
         tokio::spawn(async move {
             let start = Instant::now();
@@ -317,12 +321,16 @@ impl ImplementationFleet {
                                     &task_dir,
                                     &run_dir_clone,
                                     &no_flags,
+                                    max_review_iterations,
                                     code_reviewer_provider.as_deref(),
                                     code_security_provider.as_deref(),
                                     code_reviewer_timeout,
                                     code_security_timeout,
                                     code_reviewer_custom.as_deref(),
                                     code_security_custom.as_deref(),
+                                    judge_provider.as_deref(),
+                                    judge_timeout,
+                                    judge_custom.as_deref(),
                                     provider.as_ref(),
                                     timeout,
                                 )
@@ -433,8 +441,6 @@ impl ImplementationFleet {
     }
 }
 
-const MAX_CODE_REVIEW_ITERATIONS: u32 = 2;
-
 async fn get_worktree_diff(worktree_path: &Path) -> String {
     let output = tokio::process::Command::new("git")
         .current_dir(worktree_path)
@@ -448,12 +454,6 @@ async fn get_worktree_diff(worktree_path: &Path) -> String {
     }
 }
 
-fn has_high_severity(summary: &Option<output_parser::ReviewSummary>) -> bool {
-    summary
-        .as_ref()
-        .is_some_and(|s| s.findings.iter().any(|f| f.severity == "HIGH"))
-}
-
 #[allow(clippy::too_many_arguments)]
 async fn run_code_review_loop(
     task_id: &str,
@@ -461,12 +461,16 @@ async fn run_code_review_loop(
     task_dir: &Path,
     run_dir: &Path,
     no_flags: &[String],
+    max_iterations: u32,
     code_reviewer: Option<&dyn Provider>,
     code_security: Option<&dyn Provider>,
     reviewer_timeout: Duration,
     security_timeout: Duration,
     reviewer_custom: Option<&Path>,
     security_custom: Option<&Path>,
+    judge: Option<&dyn Provider>,
+    judge_timeout: Duration,
+    judge_custom: Option<&Path>,
     implementor: &dyn Provider,
     implementor_timeout: Option<Duration>,
 ) {
@@ -474,7 +478,7 @@ async fn run_code_review_loop(
         return;
     };
 
-    for iteration in 1..=MAX_CODE_REVIEW_ITERATIONS {
+    for iteration in 1..=max_iterations {
         let diff = get_worktree_diff(wt_path).await;
         if diff.is_empty() {
             return;
@@ -525,33 +529,107 @@ async fn run_code_review_loop(
         let _ = std::fs::write(review_dir.join("code-review.md"), &review_text);
         let _ = std::fs::write(review_dir.join("code-security.md"), &security_text);
 
-        let review_summary = output_parser::parse_code_review(&review_text);
-        let security_summary = output_parser::parse_code_security_review(&security_text);
-
-        let has_high = has_high_severity(&review_summary) || has_high_severity(&security_summary);
-
-        if !has_high {
-            return;
-        }
-
-        if iteration >= MAX_CODE_REVIEW_ITERATIONS {
-            let _ = std::fs::write(
-                review_dir.join("WARNING.md"),
-                "Code review found HIGH severity issues but max iterations reached.",
+        let Some(judge_provider) = judge else {
+            let review_summary = output_parser::parse_code_review(&review_text);
+            let security_summary = output_parser::parse_code_security_review(&security_text);
+            let has_any_findings = review_summary
+                .as_ref()
+                .is_some_and(|s| !s.findings.is_empty())
+                || security_summary
+                    .as_ref()
+                    .is_some_and(|s| !s.findings.is_empty());
+            if !has_any_findings {
+                return;
+            }
+            if iteration >= max_iterations {
+                let _ = std::fs::write(
+                    review_dir.join("WARNING.md"),
+                    "Code review found issues but max iterations reached (no judge configured).",
+                );
+                return;
+            }
+            let fix_context = format!(
+                "## Code Review Findings (Iteration {})\n\n\
+                 You must fix the findings below before your task is complete.\n\n\
+                 ### Code Review\n\n{}\n\n\
+                 ### Code Security Review\n\n{}",
+                iteration, review_text, security_text
             );
-            return;
-        }
+            let _ = implementor
+                .run(&fix_context, wt_path, no_flags, implementor_timeout)
+                .await;
+            continue;
+        };
 
-        let fix_context = format!(
-            "## Code Review Findings (Iteration {})\n\n\
-             You must fix the HIGH severity findings below before your task is complete.\n\n\
-             ### Code Review\n\n{}\n\n\
-             ### Code Security Review\n\n{}",
-            iteration, review_text, security_text
+        let judge_prompt = context::build_code_judge_prompt(
+            run_dir,
+            task_id,
+            iteration,
+            &diff,
+            &review_text,
+            &security_text,
+            judge_custom,
+            wt_path,
         );
 
-        let _ = implementor
-            .run(&fix_context, wt_path, no_flags, implementor_timeout)
+        let judge_prompt = match judge_prompt {
+            Ok(p) => p,
+            _ => return,
+        };
+
+        let judge_result = judge_provider
+            .run(&judge_prompt.prompt, wt_path, no_flags, Some(judge_timeout))
             .await;
+
+        let judge_text = judge_result
+            .as_ref()
+            .map(|o| o.text.clone())
+            .unwrap_or_default();
+
+        let _ = std::fs::write(review_dir.join("judgment.md"), &judge_text);
+
+        let verdict = output_parser::parse_verdict(&judge_text);
+
+        match verdict {
+            Some(v) => {
+                if v.overall == "APPROVE" || v.valid_count == 0 {
+                    return;
+                }
+
+                if iteration >= max_iterations {
+                    let _ = std::fs::write(
+                        review_dir.join("WARNING.md"),
+                        format!(
+                            "Code review judge found {} valid issue(s) but max iterations reached.",
+                            v.valid_count
+                        ),
+                    );
+                    return;
+                }
+
+                let fix_context = format!(
+                    "## Code Review Findings (Iteration {})\n\n\
+                     The judge evaluated the code review findings and determined {} issue(s) are valid.\n\
+                     You must fix the VALID findings below before your task is complete.\n\n\
+                     ### Judge Verdict\n\n{}\n\n\
+                     ### Code Review\n\n{}\n\n\
+                     ### Code Security Review\n\n{}",
+                    iteration, v.valid_count, judge_text, review_text, security_text
+                );
+
+                let _ = implementor
+                    .run(&fix_context, wt_path, no_flags, implementor_timeout)
+                    .await;
+            }
+            None => {
+                if iteration >= max_iterations {
+                    let _ = std::fs::write(
+                        review_dir.join("WARNING.md"),
+                        "Judge did not produce a parseable verdict and max iterations reached.",
+                    );
+                }
+                return;
+            }
+        }
     }
 }

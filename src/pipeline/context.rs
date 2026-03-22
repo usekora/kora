@@ -403,6 +403,64 @@ pub fn build_code_security_auditor_prompt(
     Ok(PromptContext { prompt })
 }
 
+#[allow(clippy::too_many_arguments)]
+pub fn build_code_judge_prompt(
+    run_dir: &Path,
+    task_id: &str,
+    iteration: u32,
+    git_diff: &str,
+    code_review_text: &str,
+    code_security_text: &str,
+    custom_instructions_path: Option<&Path>,
+    project_root: &Path,
+) -> Result<PromptContext> {
+    let base = prompts::JUDGE_PROMPT;
+    let custom = load_custom_instructions(project_root, custom_instructions_path);
+
+    let task_prompt = read_file_if_exists(
+        &run_dir
+            .join("implementation")
+            .join(format!("task-{}", task_id))
+            .join("prompt.md"),
+    )
+    .unwrap_or_default();
+
+    let task_result = read_file_if_exists(
+        &run_dir
+            .join("implementation")
+            .join(format!("task-{}", task_id))
+            .join("TASK_RESULT.md"),
+    )
+    .unwrap_or_default();
+
+    let mut context = format!(
+        "## Task Spec\n\n{}\n\n\
+         ## Task Result\n\n{}\n\n\
+         ## Git Diff\n\n```diff\n{}\n```\n\n\
+         ## Code Reviewer Findings\n\n{}\n\n\
+         ## Code Security Auditor Findings\n\n{}",
+        task_prompt, task_result, git_diff, code_review_text, code_security_text
+    );
+
+    if iteration > 1 {
+        let review_base = run_dir
+            .join("implementation")
+            .join(format!("task-{}", task_id));
+        for i in 1..iteration {
+            let prev_dir = review_base.join(format!("code-review-{}", i));
+            if let Some(prev_judgment) = read_file_if_exists(&prev_dir.join("judgment.md")) {
+                context.push_str(&format!(
+                    "\n\n## Previous Code Judgment (Iteration {})\n\n{}",
+                    i, prev_judgment
+                ));
+            }
+        }
+    }
+
+    let prompt = prompts::assemble_prompt(base, custom.as_deref(), &context);
+    Ok(PromptContext { prompt })
+}
+
 pub fn build_implementor_prompt(task: &Task, test_spec: &str) -> Result<String> {
     let base = prompts::IMPLEMENTOR_PROMPT;
 
