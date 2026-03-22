@@ -8,11 +8,11 @@ use kora::cli::history;
 use kora::cli::meta_commands::{self, MetaCommand};
 use kora::cli::resume;
 use kora::config;
+use kora::config::presets;
 use kora::pipeline::orchestrator::{self, PipelineOptions};
 use kora::provider::{detect_providers, ProviderKind};
 use kora::shutdown::{self, ShutdownSignal};
 use kora::state::RunState;
-use kora::terminal::verbosity::VerbosityState;
 use kora::terminal::Renderer;
 
 fn main() -> Result<()> {
@@ -41,7 +41,7 @@ fn run(signal: ShutdownSignal) -> Result<()> {
             careful,
             dry_run,
         }) => {
-            let config = config::load(&project_root)?;
+            let mut config = config::load(&project_root)?;
             let detected = detect_providers();
             let mut renderer = Renderer::new();
 
@@ -51,9 +51,11 @@ fn run(signal: ShutdownSignal) -> Result<()> {
             }
 
             if !config::has_user_config(&project_root) {
+                // Apply Balanced preset with detected providers on first run
+                presets::apply_preset(config.pipeline_preset, &mut config.agents, &detected);
                 renderer.info(&format!(
-                    "using default configuration ({}, {} checkpoints). run `kora configure` to customize.",
-                    config.default_provider,
+                    "using default configuration (preset: {}, {} checkpoints). run `kora configure` to customize.",
+                    config.pipeline_preset,
                     config.checkpoints.len()
                 ));
                 renderer.text("");
@@ -103,27 +105,35 @@ fn run(signal: ShutdownSignal) -> Result<()> {
 }
 
 fn run_interactive_session(project_root: &std::path::Path, signal: ShutdownSignal) -> Result<()> {
-    let config = config::load(project_root)?;
+    let mut config = config::load(project_root)?;
     let detected = detect_providers();
     let mut renderer = Renderer::new();
+    let no_providers = detected.is_empty();
 
-    if detected.is_empty() {
-        print_no_provider_error();
-        return Ok(());
+    // Apply preset on first run if no user config exists
+    if !no_providers && !config::has_user_config(project_root) {
+        presets::apply_preset(config.pipeline_preset, &mut config.agents, &detected);
     }
+
+    // Enter alternate screen for a clean, contained session
+    crossterm::execute!(
+        std::io::stdout(),
+        crossterm::terminal::EnterAlternateScreen,
+        crossterm::cursor::Show,
+    )?;
 
     renderer.welcome(
         env!("CARGO_PKG_VERSION"),
         &config.default_provider,
-        config.checkpoints.len(),
+        project_root,
     );
 
-    if !config::has_user_config(project_root) {
-        renderer.info("tip: run `kora configure` to customize provider, checkpoints, and more.");
+    if no_providers {
+        renderer
+            .info("  No AI CLI tools detected. Install claude, codex, or gemini to get started.");
         renderer.text("");
     }
 
-    let mut verbosity = VerbosityState::new(config.output.default_verbosity);
     let mut last_run: Option<RunState> = None;
 
     loop {
@@ -131,25 +141,42 @@ fn run_interactive_session(project_root: &std::path::Path, signal: ShutdownSigna
             break;
         }
 
-        let input = kora::terminal::input::read_user_input()?;
+        let branch = kora::terminal::input::get_git_branch(project_root);
+        let status = kora::terminal::input::PromptStatus {
+            preset: config.pipeline_preset.to_string(),
+            branch,
+            checkpoints: config.checkpoints.len(),
+        };
+        let input = kora::terminal::input::read_user_input(&status)?;
         if input.is_empty() {
             break;
         }
 
         match meta_commands::parse_meta_command(&input) {
             MetaCommand::Status => {
+                kora::terminal::input::clear_last_input()?;
                 meta_commands::handle_status(&mut renderer, last_run.as_ref());
                 continue;
             }
-            MetaCommand::Config => {
-                meta_commands::handle_config(&mut renderer, &config);
+            MetaCommand::Configure => {
+                kora::terminal::input::clear_last_input()?;
+                if let Err(e) = configure::run_configure(project_root) {
+                    renderer.command_result(&format!("configure error: {}", e));
+                } else {
+                    config = config::load(project_root)?;
+                }
+                // Redraw screen — sub-menus may have scrolled past the welcome
+                redraw_screen(&mut renderer, &config, project_root)?;
                 continue;
             }
-            MetaCommand::Verbose => {
-                meta_commands::handle_verbose(&mut renderer, &mut verbosity);
+            MetaCommand::Clear => {
+                kora::terminal::input::clear_last_input()?;
+                last_run = None;
+                redraw_screen(&mut renderer, &config, project_root)?;
                 continue;
             }
             MetaCommand::Help => {
+                kora::terminal::input::clear_last_input()?;
                 meta_commands::handle_help(&mut renderer);
                 continue;
             }
@@ -157,6 +184,15 @@ fn run_interactive_session(project_root: &std::path::Path, signal: ShutdownSigna
                 break;
             }
             MetaCommand::None(request) => {
+                // Block pipeline execution when no providers are installed
+                if detect_providers().is_empty() {
+                    renderer.echo_input(&input);
+                    renderer.info("  No AI CLI tools installed. Install claude, codex, or gemini to run pipelines.");
+                    renderer.interaction_break();
+                    continue;
+                }
+
+                renderer.echo_input(&input);
                 let options = PipelineOptions {
                     request: request.clone(),
                     yolo: false,
@@ -196,13 +232,29 @@ fn run_interactive_session(project_root: &std::path::Path, signal: ShutdownSigna
                     last_run = Some(runs);
                 }
 
-                renderer.info("");
-                renderer.info("ready for next request. type /help for commands, ctrl+c to exit.");
-                renderer.text("");
+                renderer.interaction_break();
             }
         }
     }
 
+    Ok(())
+}
+
+fn redraw_screen(
+    renderer: &mut Renderer,
+    config: &config::Config,
+    project_root: &std::path::Path,
+) -> Result<()> {
+    crossterm::execute!(
+        std::io::stdout(),
+        crossterm::terminal::Clear(crossterm::terminal::ClearType::All),
+        crossterm::cursor::MoveTo(0, 0),
+    )?;
+    renderer.welcome(
+        env!("CARGO_PKG_VERSION"),
+        &config.default_provider,
+        project_root,
+    );
     Ok(())
 }
 
@@ -245,6 +297,10 @@ fn print_no_provider_error() {
             "https://docs.anthropic.com/en/docs/claude-code",
         ),
         (ProviderKind::Codex, "https://github.com/openai/codex"),
+        (
+            ProviderKind::Gemini,
+            "https://github.com/google-gemini/gemini-cli",
+        ),
     ];
 
     for (kind, url) in providers {
