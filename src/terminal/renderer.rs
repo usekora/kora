@@ -9,6 +9,68 @@ pub struct Renderer {
     stdout: io::Stdout,
 }
 
+/// A background spinner that animates while an async operation runs.
+pub struct Spinner {
+    col: u16,
+    row: u16,
+    stop: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    handle: Option<std::thread::JoinHandle<()>>,
+}
+
+const SPINNER_FRAMES: &[&str] = &["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+
+impl Spinner {
+    pub fn start(col: u16, row: u16) -> Self {
+        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let stop_clone = stop.clone();
+
+        let handle = std::thread::spawn(move || {
+            let mut stdout = io::stdout();
+            let mut tick = 0usize;
+            while !stop_clone.load(std::sync::atomic::Ordering::Relaxed) {
+                execute!(
+                    stdout,
+                    cursor::SavePosition,
+                    cursor::MoveTo(col, row),
+                    SetForegroundColor(Color::Green),
+                    Print(SPINNER_FRAMES[tick % SPINNER_FRAMES.len()]),
+                    ResetColor,
+                    cursor::RestorePosition,
+                ).ok();
+                stdout.flush().ok();
+                tick += 1;
+                std::thread::sleep(std::time::Duration::from_millis(80));
+            }
+            // Final: replace spinner with checkmark
+            execute!(
+                stdout,
+                cursor::SavePosition,
+                cursor::MoveTo(col, row),
+                SetForegroundColor(Color::Green),
+                Print("✓"),
+                ResetColor,
+                cursor::RestorePosition,
+            ).ok();
+            stdout.flush().ok();
+        });
+
+        Self { col, row, stop, handle: Some(handle) }
+    }
+
+    pub fn stop(mut self) {
+        self.stop.store(true, std::sync::atomic::Ordering::Relaxed);
+        if let Some(h) = self.handle.take() {
+            h.join().ok();
+        }
+    }
+}
+
+impl Drop for Spinner {
+    fn drop(&mut self) {
+        self.stop.store(true, std::sync::atomic::Ordering::Relaxed);
+    }
+}
+
 impl Renderer {
     pub fn new() -> Self {
         Self {
@@ -16,7 +78,7 @@ impl Renderer {
         }
     }
 
-    pub fn stage_header(&mut self, name: &str, status: &str) {
+    pub fn stage_header(&mut self, name: &str, status: &str) -> Spinner {
         let dots = ".".repeat(50usize.saturating_sub(name.len() + status.len()));
 
         execute!(
@@ -37,12 +99,15 @@ impl Renderer {
             ResetColor,
             Print(status),
             Print(" "),
-            SetForegroundColor(Color::Green),
-            Print("●"),
-            ResetColor,
-            Print("\r\n"),
         )
         .ok();
+        self.stdout.flush().ok();
+
+        // Get position for spinner, then move to next line
+        let (col, row) = cursor::position().unwrap_or((0, 0));
+        execute!(self.stdout, Print("\r\n")).ok();
+
+        Spinner::start(col, row)
     }
 
     pub fn stage_complete(&mut self, name: &str, duration_secs: u64) {

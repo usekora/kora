@@ -74,7 +74,7 @@ pub async fn run_pipeline(
 
     let mut metrics = RunMetrics::new();
 
-    renderer.stage_header("researcher", "starting");
+    let _spinner = renderer.stage_header("researcher", "starting");
 
     let researcher_prompt = context::build_researcher_prompt(
         &options.request,
@@ -101,6 +101,8 @@ pub async fn run_pipeline(
             return Ok(());
         }
     }
+
+    drop(_spinner);
 
     renderer.stage_complete("researcher", 0);
 
@@ -315,7 +317,7 @@ async fn run_planning_and_implementation(
     run_state.save(runs_dir)?;
 
     let breakdown = if profile.has_planner() {
-        renderer.stage_header("planner", "decomposing");
+        let _spinner = renderer.stage_header("planner", "decomposing");
 
         let planner_provider =
             get_provider(&config.agents.planner.provider).context("no provider for planner")?;
@@ -347,6 +349,9 @@ async fn run_planning_and_implementation(
             &planner_output,
         );
 
+        drop(_spinner);
+
+
         renderer.stage_complete("planner", 0);
         renderer.info(&format!(
             "{} tasks, strategy: {}, critical path: {}",
@@ -362,7 +367,7 @@ async fn run_planning_and_implementation(
 
     // Test Architect — skip for Trivial and Simple
     let test_strategy = if config.agents.test_architect.enabled && profile.has_test_architect() {
-        renderer.stage_header("test architect", "designing tests");
+        let _spinner = renderer.stage_header("test architect", "designing tests");
         run_state.advance(Stage::TestArchitecting);
         run_state.save(runs_dir)?;
 
@@ -384,6 +389,9 @@ async fn run_planning_and_implementation(
             config.agents.test_architect.timeout_seconds,
         )
         .await?;
+
+        drop(_spinner);
+
 
         renderer.stage_complete("test architect", 0);
         strategy
@@ -512,7 +520,7 @@ async fn run_validation_and_merge(
             run_state.advance(Stage::Validating);
             run_state.save(runs_dir)?;
 
-            renderer.stage_header("validator", &format!("iteration {}", iteration));
+            let _spinner = renderer.stage_header("validator", &format!("iteration {}", iteration));
 
             let validator_provider = get_provider(&config.agents.validator.provider)
                 .context("no provider for validator")?;
@@ -532,6 +540,9 @@ async fn run_validation_and_merge(
                 config.agents.validator.timeout_seconds,
             )
             .await?;
+
+            drop(_spinner);
+
 
             renderer.stage_complete("validator", 0);
             renderer.info(&format!(
@@ -578,7 +589,7 @@ async fn run_validation_and_merge(
             run_state.advance(Stage::Fixing);
             run_state.save(runs_dir)?;
 
-            renderer.stage_header("fixer", "applying fixes");
+            let _spinner = renderer.stage_header("fixer", "applying fixes");
 
             let fixes = validation::extract_required_fixes(&validator_output.raw_text);
 
@@ -611,6 +622,9 @@ async fn run_validation_and_merge(
             let fix_dir = run_dir.validation_dir().join(format!("fix-{}", iteration));
             std::fs::create_dir_all(&fix_dir)?;
             std::fs::write(fix_dir.join("output.md"), &fix_output.text)?;
+
+            drop(_spinner);
+
 
             renderer.stage_complete("fixer", fix_output.duration.as_secs());
         }
@@ -661,7 +675,7 @@ async fn resume_pipeline(
 
     match stage {
         Stage::Researching => {
-            renderer.stage_header("researcher", "resuming");
+            let _spinner = renderer.stage_header("researcher", "resuming");
             let researcher_prompt = context::build_researcher_prompt(
                 &run_state.request,
                 load_custom_instructions(project_root, &config.agents.researcher).as_deref(),
@@ -678,6 +692,8 @@ async fn resume_pipeline(
                 &no_flags,
             )
             .await?;
+            drop(_spinner);
+
             renderer.stage_complete("researcher", 0);
 
             let outcome = review_loop::run_review_loop(

@@ -112,10 +112,12 @@ pub async fn run_review_loop(
         };
 
         std::fs::write(iter_dir.join("review.md"), &review_output.text)?;
+
         renderer.stage_complete("reviewer", review_output.duration.as_secs());
 
         if let Some(ref sec_output) = security_output {
             std::fs::write(iter_dir.join("security-audit.md"), &sec_output.text)?;
+
             renderer.stage_complete("security auditor", sec_output.duration.as_secs());
         }
 
@@ -135,7 +137,7 @@ pub async fn run_review_loop(
         run_state.advance(Stage::Judging);
         run_state.save(runs_dir)?;
 
-        renderer.stage_header("judge", "evaluating");
+        let _spinner = renderer.stage_header("judge", "evaluating");
 
         let judge_provider = get_provider(&config.agents.judge.provider)
             .context("no provider available for judge")?;
@@ -154,6 +156,9 @@ pub async fn run_review_loop(
             .context("judge failed")?;
 
         std::fs::write(iter_dir.join("judgment.md"), &judge_output.text)?;
+
+        drop(_spinner);
+
 
         renderer.stage_complete("judge", judge_output.duration.as_secs());
 
@@ -181,7 +186,7 @@ pub async fn run_review_loop(
                     run_state.advance(Stage::Researching);
                     run_state.save(runs_dir)?;
 
-                    renderer.stage_header("researcher", "revising");
+                    let _spinner = renderer.stage_header("researcher", "revising");
 
                     let researcher_provider = get_provider(&config.agents.researcher.provider)
                         .context("no provider available for researcher")?;
@@ -201,6 +206,9 @@ pub async fn run_review_loop(
                         config.agents.researcher.timeout_seconds,
                     )
                     .await?;
+
+                    drop(_spinner);
+
 
                     renderer.stage_complete("researcher (revision)", 0);
                 }
