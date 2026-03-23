@@ -124,13 +124,6 @@ fn run_interactive_session(project_root: &std::path::Path, signal: ShutdownSigna
         presets::apply_preset(config.pipeline_preset, &mut config.agents, &detected);
     }
 
-    // Enter alternate screen for a clean, contained session
-    crossterm::execute!(
-        std::io::stdout(),
-        crossterm::terminal::EnterAlternateScreen,
-        crossterm::cursor::Show,
-    )?;
-
     renderer.welcome(
         env!("CARGO_PKG_VERSION"),
         &config.default_provider,
@@ -214,7 +207,7 @@ fn run_interactive_session(project_root: &std::path::Path, signal: ShutdownSigna
                             &mut renderer,
                         ) => result,
                         _ = pipeline_signal.wait() => {
-                            renderer.info("\n  pipeline interrupted — state saved, resumable with `kora resume`");
+                            renderer.info("\r\n  pipeline interrupted — state saved, resumable with `kora resume`");
                             Ok(())
                         }
                     }

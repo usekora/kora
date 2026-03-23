@@ -64,10 +64,5 @@ pub fn install_ctrlc_handler(signal: &ShutdownSignal) {
 
 pub fn restore_terminal() {
     crossterm::terminal::disable_raw_mode().ok();
-    crossterm::execute!(
-        std::io::stdout(),
-        crossterm::cursor::Show,
-        crossterm::terminal::LeaveAlternateScreen,
-    )
-    .ok();
+    crossterm::execute!(std::io::stdout(), crossterm::cursor::Show).ok();
 }

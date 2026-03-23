@@ -74,12 +74,15 @@ pub async fn run_pipeline(
 
     let mut metrics = RunMetrics::new();
 
-    let _spinner = renderer.stage_header("researcher", "starting");
+    let _spinner = renderer.stage_header("researcher", "analyzing");
+    _spinner.set_status("building prompt");
 
     let researcher_prompt = context::build_researcher_prompt(
         &options.request,
         load_custom_instructions(project_root, &config.agents.researcher).as_deref(),
     )?;
+
+    _spinner.set_status("running");
 
     let researcher_provider = get_provider(&config.agents.researcher.provider);
     match researcher_provider {

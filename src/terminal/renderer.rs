@@ -9,52 +9,69 @@ pub struct Renderer {
     stdout: io::Stdout,
 }
 
-/// A background spinner that animates while an async operation runs.
+/// A background spinner that animates on the stage header line.
 pub struct Spinner {
-    col: u16,
-    row: u16,
     stop: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    status: std::sync::Arc<std::sync::Mutex<String>>,
     handle: Option<std::thread::JoinHandle<()>>,
 }
 
 const SPINNER_FRAMES: &[&str] = &["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
 impl Spinner {
-    pub fn start(col: u16, row: u16) -> Self {
+    pub fn start(spinner_col: u16, row: u16, prefix: &str, initial_status: &str) -> Self {
         let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let status = std::sync::Arc::new(std::sync::Mutex::new(initial_status.to_string()));
         let stop_clone = stop.clone();
+        let status_clone = status.clone();
+        let prefix = prefix.to_string();
 
         let handle = std::thread::spawn(move || {
             let mut stdout = io::stdout();
             let mut tick = 0usize;
             while !stop_clone.load(std::sync::atomic::Ordering::Relaxed) {
+                let status_text = status_clone.lock().unwrap().clone();
+                let frame = SPINNER_FRAMES[tick % SPINNER_FRAMES.len()];
+                // Rewrite the entire line: \r moves to column 0, then print prefix + status + spinner
                 execute!(
                     stdout,
-                    cursor::SavePosition,
-                    cursor::MoveTo(col, row),
+                    cursor::MoveTo(0, row),
+                    Clear(ClearType::CurrentLine),
+                    Print(&prefix),
+                    Print(&status_text),
+                    Print(" "),
                     SetForegroundColor(Color::Green),
-                    Print(SPINNER_FRAMES[tick % SPINNER_FRAMES.len()]),
+                    Print(frame),
                     ResetColor,
-                    cursor::RestorePosition,
                 ).ok();
                 stdout.flush().ok();
                 tick += 1;
                 std::thread::sleep(std::time::Duration::from_millis(80));
             }
-            // Final: replace spinner with checkmark
+            // Final: show checkmark
+            let status_text = status_clone.lock().unwrap().clone();
             execute!(
                 stdout,
-                cursor::SavePosition,
-                cursor::MoveTo(col, row),
+                cursor::MoveTo(0, row),
+                Clear(ClearType::CurrentLine),
+                Print(&prefix),
+                Print(&status_text),
+                Print(" "),
                 SetForegroundColor(Color::Green),
                 Print("✓"),
                 ResetColor,
-                cursor::RestorePosition,
             ).ok();
             stdout.flush().ok();
         });
 
-        Self { col, row, stop, handle: Some(handle) }
+        Self { stop, status, handle: Some(handle) }
+    }
+
+    /// Update the status text shown next to the spinner.
+    pub fn set_status(&self, new_status: &str) {
+        if let Ok(mut s) = self.status.lock() {
+            *s = new_status.to_string();
+        }
     }
 
     pub fn stop(mut self) {
@@ -81,33 +98,21 @@ impl Renderer {
     pub fn stage_header(&mut self, name: &str, status: &str) -> Spinner {
         let dots = ".".repeat(50usize.saturating_sub(name.len() + status.len()));
 
-        execute!(
-            self.stdout,
-            Print("\r\n  "),
-            SetForegroundColor(Color::White),
-            SetAttribute(Attribute::Bold),
-            Print(name),
-            SetAttribute(Attribute::Reset),
-            Print(" "),
-            SetForegroundColor(Color::Rgb {
-                r: 130,
-                g: 130,
-                b: 130
-            }),
-            Print(dots),
-            Print(" "),
-            ResetColor,
-            Print(status),
-            Print(" "),
-        )
-        .ok();
+        // Build the prefix that stays fixed on the line
+        let prefix = format!("  \x1b[1m{}\x1b[0m \x1b[38;2;130;130;130m{}\x1b[0m ", name, dots);
+        let prefix_display_len = 2 + name.len() + 1 + dots.len() + 1; // for column calculation
+
+        execute!(self.stdout, Print("\r\n"), Print(&prefix), Print(status), Print(" ")).ok();
         self.stdout.flush().ok();
 
-        // Get position for spinner, then move to next line
-        let (col, row) = cursor::position().unwrap_or((0, 0));
+        // Get cursor position with raw mode briefly enabled
+        crossterm::terminal::enable_raw_mode().ok();
+        let (col, row) = cursor::position().unwrap_or((prefix_display_len as u16 + status.len() as u16 + 1, 0));
+        crossterm::terminal::disable_raw_mode().ok();
+
         execute!(self.stdout, Print("\r\n")).ok();
 
-        Spinner::start(col, row)
+        Spinner::start(col, row, &prefix, status)
     }
 
     pub fn stage_complete(&mut self, name: &str, duration_secs: u64) {
