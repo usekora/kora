@@ -124,11 +124,10 @@ pub fn read_user_input(status: &PromptStatus) -> io::Result<String> {
                         }
                         hide_dropdown(&mut stdout, &lines, &status_line)?;
                     }
+                    // Clear the entire box before returning
+                    execute!(stdout, cursor::MoveTo(0, top_border_row), Clear(ClearType::FromCursorDown))?;
                     execute!(stdout, PopKeyboardEnhancementFlags).ok();
                     terminal::disable_raw_mode()?;
-                    // Move cursor below the box: down past remaining lines + bottom border + status
-                    let lines_below = (lines.len() - 1 - cur_line) as u16 + 2;
-                    execute!(stdout, cursor::MoveDown(lines_below), Print("\r\n"))?;
                     return Ok(lines.join("\n").trim().to_string());
                 }
                 KeyCode::Tab if dd_visible => {
