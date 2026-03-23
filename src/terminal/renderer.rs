@@ -19,26 +19,64 @@ pub struct Spinner {
 const SPINNER_FRAMES: &[&str] = &["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
 impl Spinner {
-    pub fn start(spinner_col: u16, row: u16, prefix: &str, initial_status: &str) -> Self {
+    pub fn start(row: u16, name: &str, dot_count: usize, initial_status: &str, provider_info: &str) -> Self {
         let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let status = std::sync::Arc::new(std::sync::Mutex::new(initial_status.to_string()));
         let stop_clone = stop.clone();
         let status_clone = status.clone();
-        let prefix = prefix.to_string();
+        let name = name.to_string();
+        let provider_info = provider_info.to_string();
 
         let handle = std::thread::spawn(move || {
             let mut stdout = io::stdout();
             let mut tick = 0usize;
+            let wave_width = 3usize;
+            let start_time = std::time::Instant::now();
+
+            execute!(stdout, cursor::Hide).ok();
+
             while !stop_clone.load(std::sync::atomic::Ordering::Relaxed) {
                 let status_text = status_clone.lock().unwrap().clone();
                 let frame = SPINNER_FRAMES[tick % SPINNER_FRAMES.len()];
-                // Rewrite the entire line: \r moves to column 0, then print prefix + status + spinner
+                let elapsed = start_time.elapsed();
+                let secs = elapsed.as_secs();
+                let timer = format!("{}:{:02}", secs / 60, secs % 60);
+
+                // Animated dots: wave of bright purple dots moving across
+                let wave_pos = tick % (dot_count + wave_width);
+                let mut dots = String::new();
+                for i in 0..dot_count {
+                    if i >= wave_pos.saturating_sub(wave_width) && i < wave_pos {
+                        dots.push_str("\x1b[38;2;108;92;231m.\x1b[0m");
+                    } else {
+                        dots.push_str("\x1b[38;2;80;80;80m.\x1b[0m");
+                    }
+                }
+
                 execute!(
                     stdout,
                     cursor::MoveTo(0, row),
                     Clear(ClearType::CurrentLine),
-                    Print(&prefix),
-                    Print(&status_text),
+                    Print("  "),
+                    SetForegroundColor(Color::White),
+                    SetAttribute(Attribute::Bold),
+                    Print(&name),
+                    SetAttribute(Attribute::Reset),
+                    Print(" "),
+                    ResetColor,
+                ).ok();
+                write!(stdout, "{}", dots).ok();
+                execute!(stdout, Print(" "), SetForegroundColor(Color::Cyan), Print(&status_text)).ok();
+                if !provider_info.is_empty() {
+                    execute!(stdout,
+                        SetForegroundColor(Color::Rgb { r: 130, g: 130, b: 130 }),
+                        Print(format!(" ({})", provider_info)),
+                    ).ok();
+                }
+                execute!(
+                    stdout,
+                    SetForegroundColor(Color::Rgb { r: 130, g: 130, b: 130 }),
+                    Print(format!(" {}", timer)),
                     Print(" "),
                     SetForegroundColor(Color::Green),
                     Print(frame),
@@ -48,18 +86,42 @@ impl Spinner {
                 tick += 1;
                 std::thread::sleep(std::time::Duration::from_millis(80));
             }
-            // Final: show checkmark
+
+            // Final: elapsed time, green status with checkmark
             let status_text = status_clone.lock().unwrap().clone();
+            let elapsed = start_time.elapsed();
+            let secs = elapsed.as_secs();
+            let timer = format!("{}:{:02}", secs / 60, secs % 60);
+            let dim_dots = format!("\x1b[38;2;80;80;80m{}\x1b[0m", ".".repeat(dot_count));
             execute!(
                 stdout,
                 cursor::MoveTo(0, row),
                 Clear(ClearType::CurrentLine),
-                Print(&prefix),
-                Print(&status_text),
+                Print("  "),
+                SetForegroundColor(Color::White),
+                SetAttribute(Attribute::Bold),
+                Print(&name),
+                SetAttribute(Attribute::Reset),
+                Print(" "),
+                ResetColor,
+            ).ok();
+            write!(stdout, "{}", dim_dots).ok();
+            execute!(stdout, Print(" "), SetForegroundColor(Color::Green), Print(&status_text)).ok();
+            if !provider_info.is_empty() {
+                execute!(stdout,
+                    SetForegroundColor(Color::Rgb { r: 130, g: 130, b: 130 }),
+                    Print(format!(" ({})", provider_info)),
+                ).ok();
+            }
+            execute!(
+                stdout,
+                SetForegroundColor(Color::Rgb { r: 130, g: 130, b: 130 }),
+                Print(format!(" {}", timer)),
                 Print(" "),
                 SetForegroundColor(Color::Green),
                 Print("✓"),
                 ResetColor,
+                cursor::Show,
             ).ok();
             stdout.flush().ok();
         });
@@ -95,24 +157,40 @@ impl Renderer {
         }
     }
 
+    /// Start a stage with an animated spinner. `provider_info` is e.g. "claude:sonnet-4-6".
     pub fn stage_header(&mut self, name: &str, status: &str) -> Spinner {
-        let dots = ".".repeat(50usize.saturating_sub(name.len() + status.len()));
+        self.stage_header_with_provider(name, status, None)
+    }
 
-        // Build the prefix that stays fixed on the line
-        let prefix = format!("  \x1b[1m{}\x1b[0m \x1b[38;2;130;130;130m{}\x1b[0m ", name, dots);
-        let prefix_display_len = 2 + name.len() + 1 + dots.len() + 1; // for column calculation
+    pub fn stage_header_with_provider(&mut self, name: &str, status: &str, provider_info: Option<&str>) -> Spinner {
+        let dot_count = 40usize.saturating_sub(name.len());
 
-        execute!(self.stdout, Print("\r\n"), Print(&prefix), Print(status), Print(" ")).ok();
+        // Print initial line
+        execute!(
+            self.stdout,
+            Print("\r\n  "),
+            SetForegroundColor(Color::White),
+            SetAttribute(Attribute::Bold),
+            Print(name),
+            SetAttribute(Attribute::Reset),
+            Print(" "),
+            SetForegroundColor(Color::Rgb { r: 130, g: 130, b: 130 }),
+            Print(".".repeat(dot_count)),
+            Print(" "),
+            ResetColor,
+            Print(status),
+            Print(" "),
+        ).ok();
         self.stdout.flush().ok();
 
         // Get cursor position with raw mode briefly enabled
         crossterm::terminal::enable_raw_mode().ok();
-        let (col, row) = cursor::position().unwrap_or((prefix_display_len as u16 + status.len() as u16 + 1, 0));
+        let (_, row) = cursor::position().unwrap_or((0, 0));
         crossterm::terminal::disable_raw_mode().ok();
 
         execute!(self.stdout, Print("\r\n")).ok();
 
-        Spinner::start(col, row, &prefix, status)
+        Spinner::start(row, name, dot_count, status, provider_info.unwrap_or(""))
     }
 
     pub fn stage_complete(&mut self, name: &str, duration_secs: u64) {
@@ -291,15 +369,9 @@ impl Renderer {
 
     /// Clear the separator + raw input line and reprint user input as a styled message.
     pub fn echo_input(&mut self, input: &str) {
-        // Move up to overwrite separator line + input line
+        // Box was already cleared on submit, just print the echoed message
         execute!(
             self.stdout,
-            cursor::MoveUp(2),
-            cursor::MoveToColumn(0),
-            Clear(ClearType::CurrentLine),
-            Clear(ClearType::FromCursorDown),
-            Print("\r\n"),
-            cursor::MoveToColumn(0),
             SetForegroundColor(Color::White),
             SetAttribute(Attribute::Bold),
             Print(format!("  > {}", input)),

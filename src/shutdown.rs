@@ -51,13 +51,25 @@ pub fn install_ctrlc_handler(signal: &ShutdownSignal) {
 
     ctrlc::set_handler(move || {
         if triggered.load(Ordering::Relaxed) {
-            // Second Ctrl+C: restore terminal and force exit immediately
+            // Second Ctrl+C: force exit
             restore_terminal();
             std::process::exit(1);
         }
 
+        // First Ctrl+C: set flag and try graceful shutdown
         triggered.store(true, Ordering::Relaxed);
         notify.notify_waiters();
+
+        // Also force exit after a short delay if graceful shutdown doesn't work
+        // (child processes may swallow SIGINT)
+        let triggered_clone = triggered.clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_secs(2));
+            if triggered_clone.load(Ordering::Relaxed) {
+                restore_terminal();
+                std::process::exit(1);
+            }
+        });
     })
     .ok();
 }

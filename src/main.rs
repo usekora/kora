@@ -124,6 +124,13 @@ fn run_interactive_session(project_root: &std::path::Path, signal: ShutdownSigna
         presets::apply_preset(config.pipeline_preset, &mut config.agents, &detected);
     }
 
+    // Clear screen for a clean start
+    crossterm::execute!(
+        std::io::stdout(),
+        crossterm::terminal::Clear(crossterm::terminal::ClearType::All),
+        crossterm::cursor::MoveTo(0, 0),
+    )?;
+
     renderer.welcome(
         env!("CARGO_PKG_VERSION"),
         &config.default_provider,
@@ -235,20 +242,11 @@ fn run_interactive_session(project_root: &std::path::Path, signal: ShutdownSigna
 }
 
 fn redraw_screen(
-    renderer: &mut Renderer,
-    config: &config::Config,
-    project_root: &std::path::Path,
+    _renderer: &mut Renderer,
+    _config: &config::Config,
+    _project_root: &std::path::Path,
 ) -> Result<()> {
-    crossterm::execute!(
-        std::io::stdout(),
-        crossterm::terminal::Clear(crossterm::terminal::ClearType::All),
-        crossterm::cursor::MoveTo(0, 0),
-    )?;
-    renderer.welcome(
-        env!("CARGO_PKG_VERSION"),
-        &config.default_provider,
-        project_root,
-    );
+    // No-op without alternate screen — configure menus clean up after themselves
     Ok(())
 }
 

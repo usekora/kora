@@ -13,8 +13,18 @@ use crate::provider::{self, Provider};
 use crate::state::{
     checkpoint_for_stage, Checkpoint, PipelineProfile, RunDirectory, RunState, Stage,
 };
+use crate::config::AgentConfig;
 use crate::terminal::dashboard::Dashboard;
 use crate::terminal::Renderer;
+
+/// Format provider info for display, e.g. "claude:sonnet-4-6" or "claude"
+fn provider_label(agent: &AgentConfig) -> String {
+    if let Some(ref model) = agent.model {
+        format!("{}:{}", agent.provider, model)
+    } else {
+        agent.provider.clone()
+    }
+}
 
 pub struct PipelineOptions {
     pub request: String,
@@ -74,7 +84,8 @@ pub async fn run_pipeline(
 
     let mut metrics = RunMetrics::new();
 
-    let _spinner = renderer.stage_header("researcher", "analyzing");
+    let plabel = provider_label(&config.agents.researcher);
+    let _spinner = renderer.stage_header_with_provider("researcher", "analyzing", Some(&plabel));
     _spinner.set_status("building prompt");
 
     let researcher_prompt = context::build_researcher_prompt(
@@ -82,7 +93,9 @@ pub async fn run_pipeline(
         load_custom_instructions(project_root, &config.agents.researcher).as_deref(),
     )?;
 
-    _spinner.set_status("running");
+    // Stop spinner before launching interactive session — the CLI takes over stdout
+    _spinner.set_status("launching");
+    drop(_spinner);
 
     let researcher_provider = get_provider(&config.agents.researcher.provider);
     match researcher_provider {
@@ -105,7 +118,6 @@ pub async fn run_pipeline(
         }
     }
 
-    drop(_spinner);
 
     renderer.stage_complete("researcher", 0);
 
@@ -684,6 +696,9 @@ async fn resume_pipeline(
                 load_custom_instructions(project_root, &config.agents.researcher).as_deref(),
             )?;
 
+            // Stop spinner before interactive session
+            drop(_spinner);
+
             let researcher_provider = get_provider(&config.agents.researcher.provider)
                 .context("no provider for researcher")?;
             let no_flags: Vec<String> = vec![];
@@ -695,7 +710,6 @@ async fn resume_pipeline(
                 &no_flags,
             )
             .await?;
-            drop(_spinner);
 
             renderer.stage_complete("researcher", 0);
 
