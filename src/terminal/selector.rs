@@ -319,7 +319,43 @@ pub fn settings_menu(settings: &[Setting]) -> io::Result<SettingsAction> {
 /// Draw the fixed header. Called once by run_configure.
 pub fn draw_settings_header() -> io::Result<()> {
     let mut stdout = io::stdout();
-    execute!(stdout, Print("\r\n"))?;
+    execute!(
+        stdout,
+        Print("\r\n"),
+        SetForegroundColor(Color::White),
+        Print("  Configuration\r\n"),
+        SetForegroundColor(DIM),
+        Print("  ─────────────────────────────────────────\r\n"),
+        ResetColor,
+    )?;
+    Ok(())
+}
+
+/// Show a description header above a sub-menu.
+/// Returns the number of lines drawn (for cleanup).
+pub fn show_submenu_desc(title: &str, description: &str) -> io::Result<u16> {
+    let mut stdout = io::stdout();
+    execute!(
+        stdout,
+        Print("\r\n"),
+        SetForegroundColor(Color::White),
+        Print(format!("  {}\r\n", title)),
+        SetForegroundColor(DIM),
+        Print(format!("  {}\r\n", description)),
+        ResetColor,
+    )?;
+    Ok(3) // blank + title + description
+}
+
+/// Clear a sub-menu description header.
+pub fn clear_submenu_desc(lines: u16) -> io::Result<()> {
+    let mut stdout = io::stdout();
+    execute!(
+        stdout,
+        cursor::MoveUp(lines),
+        cursor::MoveToColumn(0),
+        Clear(ClearType::FromCursorDown),
+    )?;
     Ok(())
 }
 
@@ -328,7 +364,7 @@ pub fn clear_settings_header() -> io::Result<()> {
     let mut stdout = io::stdout();
     execute!(
         stdout,
-        cursor::MoveUp(1),
+        cursor::MoveUp(3),
         cursor::MoveToColumn(0),
         Clear(ClearType::FromCursorDown),
     )?;
