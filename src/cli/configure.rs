@@ -101,16 +101,55 @@ fn edit_setting(
     detected: &[crate::provider::DetectedProvider],
 ) -> Result<()> {
     match idx {
-        0 => select_preset(config, detected)?,
-        1 => {
-            edit_agent_models(config, detected)?;
-            // If agent config was changed while on a preset, switch to Custom
-            config.pipeline_preset = PipelinePreset::Custom;
+        0 => {
+            let n = selector::show_submenu_desc(
+                "Pipeline Preset",
+                "Choose how agents are routed to providers based on quality vs speed.",
+            )?;
+            select_preset(config, detected)?;
+            selector::clear_submenu_desc(n)?;
         }
-        2 => edit_disabled_agents(config)?,
-        3 => edit_checkpoints(config)?,
-        4 => edit_branch_strategy(config)?,
-        5 => edit_parallel_limit(config)?,
+        1 => {
+            let n = selector::show_submenu_desc(
+                "Agent Config",
+                "Override the provider and model for each agent. Space to cycle.",
+            )?;
+            edit_agent_models(config, detected)?;
+            config.pipeline_preset = PipelinePreset::Custom;
+            selector::clear_submenu_desc(n)?;
+        }
+        2 => {
+            let n = selector::show_submenu_desc(
+                "Disabled Agents",
+                "Toggle optional agents off to speed up the pipeline. Toggled = disabled.",
+            )?;
+            edit_disabled_agents(config)?;
+            selector::clear_submenu_desc(n)?;
+        }
+        3 => {
+            let n = selector::show_submenu_desc(
+                "Checkpoints",
+                "Approval gates where the pipeline pauses for your review.",
+            )?;
+            edit_checkpoints(config)?;
+            selector::clear_submenu_desc(n)?;
+        }
+        4 => {
+            let n = selector::show_submenu_desc(
+                "Branch Strategy",
+                "How implementation tasks are organized into git branches.",
+            )?;
+            edit_branch_strategy(config)?;
+            selector::clear_submenu_desc(n)?;
+        }
+        5 => {
+            let n = selector::show_submenu_desc(
+                "Max Parallel Tasks",
+                "How many implementor agents run simultaneously.",
+            )?;
+            edit_parallel_limit(config)?;
+            selector::clear_submenu_desc(n)?;
+        }
         _ => {}
     }
     Ok(())
