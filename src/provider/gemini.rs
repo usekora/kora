@@ -20,6 +20,7 @@ impl GeminiProvider {
     fn base_command(&self, working_dir: &Path, extra_flags: &[String]) -> Command {
         let mut cmd = Command::new(&self.cli_path);
         cmd.current_dir(working_dir);
+        cmd.kill_on_drop(true);
         for flag in ProviderKind::Gemini.autonomous_flags() {
             cmd.arg(flag);
         }

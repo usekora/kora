@@ -51,13 +51,13 @@ pub fn install_ctrlc_handler(signal: &ShutdownSignal) {
 
     ctrlc::set_handler(move || {
         if triggered.load(Ordering::Relaxed) {
-            eprintln!("\n  forced exit");
+            // Second Ctrl+C: restore terminal and force exit immediately
+            restore_terminal();
             std::process::exit(1);
         }
 
         triggered.store(true, Ordering::Relaxed);
         notify.notify_waiters();
-        eprintln!("\n  shutting down gracefully... (ctrl+c again to force)");
     })
     .ok();
 }
